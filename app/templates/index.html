@@ -1,0 +1,1483 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Deadbolt Detector Config</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* Toast notifications - bottom right */
+      .toast-container {
+        position: fixed;
+        bottom: 15px;
+        right: 15px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 8px;
+        max-width: 320px;
+      }
+
+      .toast {
+        padding: 12px 16px;
+        border-radius: 6px;
+        color: white;
+        font-size: 0.85em;
+        animation: slideIn 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        word-break: break-word;
+      }
+
+      .toast.success {
+        background: #2e7d32;
+      }
+      .toast.error {
+        background: #c62828;
+      }
+      .toast.info {
+        background: #1565c0;
+      }
+      .toast.warning {
+        background: #f57c00;
+      }
+
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      .header {
+        padding: 12px 15px;
+        background: #1a1a1a;
+        color: white;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        min-height: 60px;
+        z-index: 100;
+      }
+      .header h1 {
+        font-size: 1.1em;
+        margin-right: auto;
+      }
+      .header label {
+        font-size: 0.8em;
+      }
+      .header input {
+        width: 65px;
+        padding: 5px;
+        border: 1px solid #444;
+        background: #333;
+        color: white;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .header button {
+        padding: 6px 12px;
+        cursor: pointer;
+        background: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .header button.secondary {
+        background: #666;
+      }
+      .header button:disabled {
+        background: #444;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      .header button:hover:not(:disabled) {
+        opacity: 0.9;
+      }
+
+      .main {
+        flex: 1;
+        display: flex;
+        position: relative;
+        overflow: hidden;
+        background: #0a0a0a;
+      }
+
+      .image-container {
+        flex: 1;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: auto;
+      }
+
+      #liveImage {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        user-select: none;
+        -webkit-user-drag: none;
+        display: block;
+        flex-shrink: 0;
+      }
+
+      /* Crop layer positioned exactly over the image */
+      .crop-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .selection-box {
+        position: absolute;
+        border: 2px solid #00ff00;
+        background: rgba(0, 255, 0, 0.1);
+        pointer-events: auto;
+        cursor: move;
+        display: none;
+        box-sizing: border-box;
+      }
+
+      .selection-box.active {
+        display: block;
+      }
+
+      .selection-box.moving {
+        cursor: grabbing;
+      }
+
+      /* Handles */
+      .handle {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background: #00ff00;
+        border: 2px solid white;
+        pointer-events: auto;
+      }
+
+      .handle.nw {
+        top: -6px;
+        left: -6px;
+        cursor: nw-resize;
+      }
+      .handle.ne {
+        top: -6px;
+        right: -6px;
+        cursor: ne-resize;
+      }
+      .handle.sw {
+        bottom: -6px;
+        left: -6px;
+        cursor: sw-resize;
+      }
+      .handle.se {
+        bottom: -6px;
+        right: -6px;
+        cursor: se-resize;
+      }
+
+      .handle.n {
+        top: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        cursor: n-resize;
+        width: 20px;
+        height: 10px;
+      }
+      .handle.s {
+        bottom: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        cursor: s-resize;
+        width: 20px;
+        height: 10px;
+      }
+      .handle.w {
+        left: -6px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: w-resize;
+        width: 10px;
+        height: 20px;
+      }
+      .handle.e {
+        right: -6px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: e-resize;
+        width: 10px;
+        height: 20px;
+      }
+
+      /* Floating zoom controls - bottom right of viewport */
+      .zoom-controls {
+        position: fixed;
+        bottom: 15px;
+        right: 335px; /* sidebar width + margin */
+        display: flex;
+        gap: 5px;
+        z-index: 50;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 6px;
+        border-radius: 6px;
+      }
+
+      .zoom-controls button {
+        padding: 6px 10px;
+        font-size: 0.75em;
+        background: #444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .zoom-controls button:hover {
+        background: #555;
+      }
+
+      .sidebar {
+        width: 320px;
+        background: #1a1a1a;
+        color: white;
+        padding: 15px;
+        overflow-y: auto;
+        border-left: 1px solid #333;
+        flex-shrink: 0;
+      }
+
+      .sidebar h2 {
+        font-size: 0.95em;
+        margin-bottom: 12px;
+        color: #4caf50;
+      }
+      .sidebar h3 {
+        font-size: 0.85em;
+        margin: 15px 0 8px;
+        color: #aaa;
+      }
+
+      .status {
+        padding: 10px;
+        border-radius: 4px;
+        margin: 8px 0;
+        font-size: 0.85em;
+      }
+      .status.locked {
+        background: #c62828;
+      }
+      .status.unlocked {
+        background: #2e7d32;
+      }
+      .status.unknown {
+        background: #666;
+      }
+      .status.unconfigured {
+        background: #f57c00;
+      }
+
+      .ref-section {
+        margin: 15px 0;
+        padding: 12px;
+        background: #222;
+        border-radius: 6px;
+      }
+
+      .ref-section h4 {
+        font-size: 0.8em;
+        color: #ccc;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      /* Fixed aspect ratio grid */
+      .ref-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin: 10px 0;
+      }
+
+      .ref-item {
+        position: relative;
+        aspect-ratio: 4/3;
+        border-radius: 4px;
+        overflow: hidden;
+        border: 2px solid #333;
+        background: #1a1a1a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .ref-item.active {
+        border-color: #4caf50;
+      }
+
+      .ref-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+      }
+
+      .ref-item .ref-delete {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 22px;
+        height: 22px;
+        background: #c62828;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
+
+      .ref-item .ref-delete:hover {
+        background: #d32f2f;
+      }
+
+      .ref-grid-wrapper {
+        transition: max-height 0.25s ease;
+      }
+
+      .ref-grid-wrapper.collapsed .ref-item:nth-child(n + 3) {
+        display: none;
+      }
+
+      .ref-grid-wrapper.collapsed {
+        max-height: none !important; /* Let the grid define the height */
+        overflow: visible !important;
+      }
+
+      .ref-header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .ref-toggle {
+        background: transparent;
+        border: 1px solid #444;
+        color: #ccc;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.75em;
+      }
+
+      .ref-count {
+        color: #888;
+        font-weight: normal;
+      }
+
+      .ref-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .ref-actions button {
+        flex: 1;
+        padding: 8px;
+        font-size: 0.75em;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .btn-capture {
+        background: #2196f3;
+        color: white;
+      }
+      .btn-capture:hover {
+        background: #1976d2;
+      }
+
+      .btn-upload {
+        background: #666;
+        color: white;
+      }
+      .btn-upload:hover {
+        background: #555;
+      }
+
+      .test-section {
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #444;
+      }
+
+      .test-section button {
+        width: 100%;
+        padding: 12px;
+        background: #9c27b0;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+      }
+
+      .test-section button:hover:not(:disabled) {
+        background: #7b1fa2;
+      }
+
+      .test-section button:disabled {
+        background: #444;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      .help {
+        color: #888;
+        font-size: 0.75em;
+        line-height: 1.4;
+        margin: 12px 0;
+      }
+
+      .help kbd {
+        background: #333;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-family: monospace;
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      /* Confirmation modal */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+      }
+
+      .modal-overlay.active {
+        display: flex;
+      }
+
+      .modal {
+        background: #1a1a1a;
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 400px;
+        color: white;
+      }
+
+      .modal h3 {
+        margin-bottom: 15px;
+        font-size: 1em;
+      }
+
+      .modal p {
+        margin-bottom: 20px;
+        color: #aaa;
+        font-size: 0.9em;
+      }
+
+      .modal-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .modal button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85em;
+      }
+
+      .modal .btn-cancel {
+        background: #666;
+        color: white;
+      }
+
+      .modal .btn-confirm {
+        background: #c62828;
+        color: white;
+      }
+
+      /* (Home Assistant UI removed) */
+    </style>
+  </head>
+  <body>
+    <!-- Toast container - bottom right -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Confirmation modal -->
+    <div class="modal-overlay" id="confirmModal">
+      <div class="modal">
+        <h3 id="modalTitle">Confirm Delete</h3>
+        <p id="modalMessage">Are you sure?</p>
+        <div class="modal-buttons">
+          <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+          <button
+            class="btn-confirm"
+            id="modalConfirm"
+            onclick="confirmAction()"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="header">
+      <h1>Deadbolt Detector</h1>
+      <label>X1: <input type="number" id="x1" placeholder="0" /></label>
+      <label>Y1: <input type="number" id="y1" placeholder="0" /></label>
+      <label>X2: <input type="number" id="x2" placeholder="0" /></label>
+      <label>Y2: <input type="number" id="y2" placeholder="0" /></label>
+      <button onclick="saveCrop()">Save Crop</button>
+      <button class="secondary" onclick="clearCurrentSelection()">
+        Clear current selection
+      </button>
+    </div>
+
+    <div class="main">
+      <div class="image-container" id="imageContainer">
+        <img id="liveImage" src="" alt="Live feed" draggable="false" />
+
+        <div class="crop-layer" id="cropLayer">
+          <div class="selection-box" id="selectionBox">
+            <div class="handle nw" data-handle="nw"></div>
+            <div class="handle n" data-handle="n"></div>
+            <div class="handle ne" data-handle="ne"></div>
+            <div class="handle w" data-handle="w"></div>
+            <div class="handle e" data-handle="e"></div>
+            <div class="handle sw" data-handle="sw"></div>
+            <div class="handle s" data-handle="s"></div>
+            <div class="handle se" data-handle="se"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar">
+        <h2>Detection Status</h2>
+        <div id="detectionStatus" class="status unknown">Loading...</div>
+
+        <h3>Current Crop</h3>
+        <div id="currentCrop" class="help">No crop set</div>
+
+        <div class="ref-section">
+          <h4>
+            Reference: LOCKED
+            <div class="ref-header-actions">
+              <span class="ref-count" id="lockedCount">(0)</span>
+              <button
+                class="ref-toggle"
+                id="lockedToggle"
+                onclick="toggleRefCollapse('locked')"
+                style="display: none"
+              >
+                Show more
+              </button>
+            </div>
+          </h4>
+          <div class="ref-grid-wrapper collapsed" id="lockedGridWrapper">
+            <div class="ref-grid" id="lockedGrid"></div>
+          </div>
+          <div class="ref-actions">
+            <button class="btn-capture" onclick="captureReference('locked')">
+              Capture
+            </button>
+            <button class="btn-upload" onclick="uploadReference('locked')">
+              Upload
+            </button>
+          </div>
+          <input
+            type="file"
+            id="fileLocked"
+            accept="image/*"
+            onchange="handleUpload('locked', this)"
+          />
+        </div>
+
+        <div class="ref-section">
+          <h4>
+            Reference: UNLOCKED
+            <div class="ref-header-actions">
+              <span class="ref-count" id="unlockedCount">(0)</span>
+              <button
+                class="ref-toggle"
+                id="unlockedToggle"
+                onclick="toggleRefCollapse('unlocked')"
+                style="display: none"
+              >
+                Show more
+              </button>
+            </div>
+          </h4>
+          <div class="ref-grid-wrapper collapsed" id="unlockedGridWrapper">
+            <div class="ref-grid" id="unlockedGrid"></div>
+          </div>
+          <div class="ref-actions">
+            <button class="btn-capture" onclick="captureReference('unlocked')">
+              Capture
+            </button>
+            <button class="btn-upload" onclick="uploadReference('unlocked')">
+              Upload
+            </button>
+          </div>
+          <input
+            type="file"
+            id="fileUnlocked"
+            accept="image/*"
+            onchange="handleUpload('unlocked', this)"
+          />
+        </div>
+
+        <!-- Test button moved below references -->
+        <div class="test-section">
+          <button onclick="testDetection()" id="btnTest" disabled>
+            Test Detection
+          </button>
+        </div>
+
+        <!-- Home Assistant Integration removed from UI -->
+
+        <div class="help">
+          <strong>Controls:</strong><br /><br />
+          • <strong>Click & drag</strong> on image to create crop<br />
+          • <strong>Drag box</strong> to move selection<br />
+          • <strong>Drag handles</strong> to resize<br />
+          • Hold <kbd>Shift</kbd> for square<br />
+          • Use zoom buttons to scale image<br />
+          • Hold <kbd>Command</kbd> (or <kbd>Ctrl</kbd> on Windows) to pan while
+          zoomed
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating zoom controls - bottom right of image area -->
+    <div class="zoom-controls">
+      <button onclick="setZoom(0.5)">0.5x</button>
+      <button onclick="setZoom(1)">1x</button>
+      <button onclick="setZoom(1.5)">1.5x</button>
+      <button onclick="setZoom(2)">2x</button>
+      <button onclick="setZoom(3)">3x</button>
+      <button onclick="resetZoom()">Fit</button>
+    </div>
+
+    <script>
+      const liveImage = document.getElementById("liveImage");
+      const container = document.getElementById("imageContainer");
+      const selectionBox = document.getElementById("selectionBox");
+      const toastContainer = document.getElementById("toastContainer");
+      const btnTest = document.getElementById("btnTest");
+      const inputs = {
+        x1: document.getElementById("x1"),
+        y1: document.getElementById("y1"),
+        x2: document.getElementById("x2"),
+        y2: document.getElementById("y2"),
+      };
+
+      let currentCrop = null;
+      let savedCrop = null;
+      let naturalSize = { width: 0, height: 0 };
+      let displayedRect = null;
+      let scale = { x: 1, y: 1 };
+      let zoomLevel = 1;
+
+      let isCreating = false;
+      let isMoving = false;
+      let isResizing = false;
+      let dragStart = { x: 0, y: 0 };
+      let dragStartCrop = null;
+      let activeHandle = null;
+      let shiftKey = false;
+      let hasReferences = { locked: false, unlocked: false };
+      let isPanning = false;
+      let panStart = { x: 0, y: 0 };
+      let panScrollStart = { left: 0, top: 0 };
+
+      // Modal state
+      let pendingAction = null;
+
+      // Toast notifications
+      function showToast(message, type = "info") {
+        const toast = document.createElement("div");
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        toastContainer.appendChild(toast);
+
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          toast.style.transform = "translateX(100%)";
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      }
+
+      // Modal functions
+      function showConfirm(title, message, onConfirm) {
+        document.getElementById("modalTitle").textContent = title;
+        document.getElementById("modalMessage").textContent = message;
+        pendingAction = onConfirm;
+        document.getElementById("confirmModal").classList.add("active");
+      }
+
+      function closeModal() {
+        document.getElementById("confirmModal").classList.remove("active");
+        pendingAction = null;
+      }
+
+      function confirmAction() {
+        if (pendingAction) {
+          pendingAction();
+          closeModal();
+        }
+      }
+
+      // Track shift key
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Shift") shiftKey = true;
+      });
+      document.addEventListener("keyup", (e) => {
+        if (e.key === "Shift") shiftKey = false;
+      });
+
+      // Prevent default image behaviors
+      liveImage.addEventListener("dragstart", (e) => e.preventDefault());
+
+      // Zoom functions - set explicit pixel dimensions
+      function setZoom(level) {
+        zoomLevel = level;
+        if (level === 1) {
+          resetZoom();
+          return;
+        }
+        // Set explicit dimensions based on natural size
+        liveImage.style.maxWidth = "none";
+        liveImage.style.maxHeight = "none";
+        liveImage.style.width = naturalSize.width * level + "px";
+        liveImage.style.height = naturalSize.height * level + "px";
+
+        // indicate pannable when zoomed
+        container.style.cursor = "grab";
+        // anchor to top-left so scrolling/panning covers full image
+        container.style.justifyContent = "flex-start";
+        container.style.alignItems = "flex-start";
+
+        requestAnimationFrame(() => {
+          updateGeometry();
+          // center view on image by default when zooming
+          try {
+            container.scrollLeft = Math.max(
+              0,
+              Math.round((liveImage.clientWidth - container.clientWidth) / 2),
+            );
+            container.scrollTop = Math.max(
+              0,
+              Math.round((liveImage.clientHeight - container.clientHeight) / 2),
+            );
+          } catch (e) {}
+          updateBox();
+        });
+      }
+
+      function resetZoom() {
+        zoomLevel = 1;
+        liveImage.style.width = "";
+        liveImage.style.height = "";
+        liveImage.style.maxWidth = "100%";
+        liveImage.style.maxHeight = "100%";
+
+        // restore cursor and centering
+        container.style.cursor = "";
+        container.style.justifyContent = "center";
+        container.style.alignItems = "center";
+        try {
+          container.scrollLeft = 0;
+          container.scrollTop = 0;
+        } catch (e) {}
+
+        requestAnimationFrame(() => {
+          updateGeometry();
+          updateBox();
+        });
+      }
+
+      // Get image display geometry
+      function updateGeometry() {
+        if (!liveImage || !naturalSize.width) return;
+
+        // CRITICAL: getBoundingClientRect includes CSS transform scale
+        const rendered = liveImage.getBoundingClientRect();
+        const renderedWidth = rendered.width;
+        const renderedHeight = rendered.height;
+
+        scale.x = naturalSize.width / renderedWidth;
+        scale.y = naturalSize.height / renderedHeight;
+
+        // For centering calculations only (not for coordinate conversion)
+        const contentWidth = Math.max(container.clientWidth, renderedWidth);
+        const contentHeight = Math.max(container.clientHeight, renderedHeight);
+
+        displayedRect = {
+          left:
+            Math.round((contentWidth - renderedWidth) / 2) +
+            container.scrollLeft,
+          top:
+            Math.round((contentHeight - renderedHeight) / 2) +
+            container.scrollTop,
+          width: renderedWidth,
+          height: renderedHeight,
+        };
+      }
+
+      // Convert screen coordinates to natural image coordinates
+      function toImageCoords(clientX, clientY) {
+        const rect = liveImage.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+
+        return {
+          x: Math.round(x * scale.x),
+          y: Math.round(y * scale.y),
+        };
+      }
+
+      // Convert natural coordinates to display coordinates
+      function toDisplayCoords(imgX, imgY) {
+        return {
+          x: imgX / scale.x,
+          y: imgY / scale.y,
+        };
+      }
+
+      // Constrain to image bounds
+      function constrain(coords) {
+        return [
+          Math.max(0, Math.min(coords[0], naturalSize.width)),
+          Math.max(0, Math.min(coords[1], naturalSize.height)),
+          Math.max(0, Math.min(coords[2], naturalSize.width)),
+          Math.max(0, Math.min(coords[3], naturalSize.height)),
+        ];
+      }
+
+      // Make square while preserving fixed corner/edge
+      function makeSquare(crop, fixed) {
+        const [x1, y1, x2, y2] = crop;
+        const w = Math.abs(x2 - x1);
+        const h = Math.abs(y2 - y1);
+        const size = Math.max(w, h);
+
+        let nx1, ny1, nx2, ny2;
+
+        if (fixed === "se" || fixed === "e" || fixed === "s") {
+          nx1 = Math.min(x1, x2);
+          ny1 = Math.min(y1, y2);
+          nx2 = nx1 + (x2 > x1 ? size : -size);
+          ny2 = ny1 + (y2 > y1 ? size : -size);
+        } else if (fixed === "nw" || fixed === "w" || fixed === "n") {
+          nx2 = Math.max(x1, x2);
+          ny2 = Math.max(y1, y2);
+          nx1 = nx2 - (x2 > x1 ? size : -size);
+          ny1 = ny2 - (y2 > y1 ? size : -size);
+        } else if (fixed === "ne") {
+          nx1 = Math.min(x1, x2);
+          ny2 = Math.max(y1, y2);
+          nx2 = nx1 + (x2 > x1 ? size : -size);
+          ny1 = ny2 - (y2 > y1 ? size : -size);
+        } else if (fixed === "sw") {
+          nx2 = Math.max(x1, x2);
+          ny1 = Math.min(y1, y2);
+          nx1 = nx2 - (x2 > x1 ? size : -size);
+          ny2 = ny1 + (y2 > y1 ? size : -size);
+        } else {
+          const cx = (x1 + x2) / 2;
+          const cy = (y1 + y2) / 2;
+          nx1 = cx - size / 2;
+          ny1 = cy - size / 2;
+          nx2 = cx + size / 2;
+          ny2 = cy + size / 2;
+        }
+
+        return [
+          Math.round(nx1),
+          Math.round(ny1),
+          Math.round(nx2),
+          Math.round(ny2),
+        ];
+      }
+
+      // Update visual box position
+      function updateBox() {
+        if (!currentCrop) {
+          selectionBox.classList.remove("active");
+          return;
+        }
+
+        // Use offsetLeft/Top to get position relative to the scrollable container
+        const imgX = liveImage.offsetLeft;
+        const imgY = liveImage.offsetTop;
+
+        const [ix1, iy1, ix2, iy2] = currentCrop;
+
+        // Convert natural image coordinates to display pixels
+        const d1x = Math.min(ix1, ix2) / scale.x;
+        const d1y = Math.min(iy1, iy2) / scale.y;
+        const d2x = Math.max(ix1, ix2) / scale.x;
+        const d2y = Math.max(iy1, iy2) / scale.y;
+
+        // Position the box relative to the image's offset
+        selectionBox.style.left = imgX + d1x + "px";
+        selectionBox.style.top = imgY + d1y + "px";
+        selectionBox.style.width = d2x - d1x + "px";
+        selectionBox.style.height = d2y - d1y + "px";
+        selectionBox.classList.add("active");
+
+        inputs.x1.value = Math.min(ix1, ix2);
+        inputs.y1.value = Math.min(iy1, iy2);
+        inputs.x2.value = Math.max(ix1, ix2);
+        inputs.y2.value = Math.max(iy1, iy2);
+      }
+
+      // Clear current selection (reset to saved)
+      function clearCurrentSelection() {
+        currentCrop = savedCrop ? [...savedCrop] : null;
+        if (currentCrop) {
+          updateBox();
+          showToast("Selection reset to saved crop", "info");
+        } else {
+          selectionBox.classList.remove("active");
+          Object.values(inputs).forEach((i) => (i.value = ""));
+          showToast("Selection cleared", "info");
+        }
+      }
+
+      // Mouse down on image (create new selection) or pan when holding Command/Ctrl
+      liveImage.addEventListener("mousedown", (e) => {
+        if (e.target.closest(".selection-box")) return;
+
+        // Hold Command (meta) on mac or Ctrl on Windows to pan when zoomed
+        if ((e.metaKey || e.ctrlKey) && zoomLevel > 1) {
+          isPanning = true;
+          panStart = { x: e.clientX, y: e.clientY };
+          panScrollStart = {
+            left: container.scrollLeft,
+            top: container.scrollTop,
+          };
+          container.style.cursor = "grabbing";
+          e.preventDefault();
+          return;
+        }
+
+        updateGeometry();
+        isCreating = true;
+        const coords = toImageCoords(e.clientX, e.clientY);
+        dragStart = coords;
+        currentCrop = [coords.x, coords.y, coords.x, coords.y];
+        updateBox();
+        e.preventDefault();
+      });
+
+      // Mouse down on selection box (move)
+      selectionBox.addEventListener("mousedown", (e) => {
+        if (e.target.classList.contains("handle")) return;
+
+        updateGeometry();
+        isMoving = true;
+        dragStart = toImageCoords(e.clientX, e.clientY);
+        dragStartCrop = [...currentCrop];
+        selectionBox.classList.add("moving");
+        e.stopPropagation();
+        e.preventDefault();
+      });
+
+      // Mouse down on handles (resize)
+      document.querySelectorAll(".handle").forEach((handle) => {
+        handle.addEventListener("mousedown", (e) => {
+          updateGeometry();
+          isResizing = true;
+          activeHandle = handle.dataset.handle;
+          dragStart = toImageCoords(e.clientX, e.clientY);
+          dragStartCrop = [...currentCrop];
+          e.stopPropagation();
+          e.preventDefault();
+        });
+      });
+
+      // Global mouse move
+      document.addEventListener("mousemove", (e) => {
+        if (isPanning) {
+          const dx = e.clientX - panStart.x;
+          const dy = e.clientY - panStart.y;
+          container.scrollLeft = panScrollStart.left - dx;
+          container.scrollTop = panScrollStart.top - dy;
+          return;
+        }
+
+        if (!isCreating && !isMoving && !isResizing) return;
+
+        updateGeometry();
+
+        const coords = toImageCoords(e.clientX, e.clientY);
+
+        if (isCreating) {
+          let curX = coords.x;
+          let curY = coords.y;
+
+          if (shiftKey) {
+            // Calculate distance from the start point
+            const dx = curX - dragStart.x;
+            const dy = curY - dragStart.y;
+            // Use the larger distance to force a square
+            const side = Math.max(Math.abs(dx), Math.abs(dy));
+
+            // Apply the side length in the direction the mouse is moving
+            curX = dragStart.x + (dx >= 0 ? side : -side);
+            curY = dragStart.y + (dy >= 0 ? side : -side);
+          }
+
+          currentCrop = constrain([dragStart.x, dragStart.y, curX, curY]);
+          updateBox();
+        } else if (isMoving) {
+          const dx = coords.x - dragStart.x;
+          const dy = coords.y - dragStart.y;
+          let newCrop = [
+            dragStartCrop[0] + dx,
+            dragStartCrop[1] + dy,
+            dragStartCrop[2] + dx,
+            dragStartCrop[3] + dy,
+          ];
+          currentCrop = constrain(newCrop);
+          updateBox();
+        } else if (isResizing) {
+          let [x1, y1, x2, y2] = [...dragStartCrop];
+          let curX = coords.x;
+          let curY = coords.y;
+
+          if (shiftKey) {
+            // Determine the anchor point (the corner/side opposite to the handle)
+            const ax = activeHandle.includes("w") ? x2 : x1;
+            const ay = activeHandle.includes("n") ? y2 : y1;
+
+            const dx = curX - ax;
+            const dy = curY - ay;
+            const side = Math.max(Math.abs(dx), Math.abs(dy));
+
+            // Calculate new position for the dragged side/corner
+            const nx = ax + (dx >= 0 ? side : -side);
+            const ny = ay + (dy >= 0 ? side : -side);
+
+            if (activeHandle.includes("w")) x1 = nx;
+            if (activeHandle.includes("e")) x2 = nx;
+            if (activeHandle.includes("n")) y1 = ny;
+            if (activeHandle.includes("s")) y2 = ny;
+          } else {
+            // Standard non-square resizing
+            if (activeHandle.includes("n")) y1 = curY;
+            if (activeHandle.includes("s")) y2 = curY;
+            if (activeHandle.includes("w")) x1 = curX;
+            if (activeHandle.includes("e")) x2 = curX;
+          }
+
+          currentCrop = constrain([x1, y1, x2, y2]);
+          updateBox();
+        }
+      });
+
+      // Global mouse up
+      document.addEventListener("mouseup", () => {
+        isCreating = false;
+        isMoving = false;
+        isResizing = false;
+        activeHandle = null;
+        selectionBox.classList.remove("moving");
+        if (isPanning) {
+          isPanning = false;
+          container.style.cursor = "";
+        }
+      });
+
+      // Window resize
+      window.addEventListener("resize", () => {
+        updateGeometry();
+        updateBox();
+      });
+
+      // Image loaded
+      liveImage.addEventListener("load", () => {
+        naturalSize = {
+          width: liveImage.naturalWidth,
+          height: liveImage.naturalHeight,
+        };
+        updateGeometry();
+        updateBox();
+      });
+
+      // Update test button state
+      function updateTestButton() {
+        const canTest =
+          hasReferences.locked && hasReferences.unlocked && savedCrop;
+        btnTest.disabled = !canTest;
+      }
+
+      // Home Assistant UI removed
+
+      // API functions
+      function loadFrame() {
+        fetch("/api/frame")
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.image) {
+              liveImage.src = data.image;
+              document.getElementById("currentCrop").textContent = data.crop
+                ? `Active: [${data.crop.join(", ")}]`
+                : "No crop set";
+            }
+          })
+          .catch((err) => showToast("Failed to load camera frame", "error"));
+      }
+
+      function loadReferences() {
+        fetch("/api/references")
+          .then((r) => r.json())
+          .then((data) => {
+            hasReferences.locked = (data.locked || []).length > 0;
+            hasReferences.unlocked = (data.unlocked || []).length > 0;
+
+            renderReferenceGrid("locked", data.locked || []);
+            renderReferenceGrid("unlocked", data.unlocked || []);
+
+            updateTestButton();
+
+            const status = document.getElementById("detectionStatus");
+            if (!hasReferences.locked && !hasReferences.unlocked) {
+              status.textContent = "Configure references to enable detection";
+              status.className = "status unconfigured";
+            } else if (!hasReferences.locked || !hasReferences.unlocked) {
+              status.textContent = `Missing: ${!hasReferences.locked ? "LOCKED" : ""} ${!hasReferences.unlocked ? "UNLOCKED" : ""} references`;
+              status.className = "status unconfigured";
+            } else if (!savedCrop) {
+              status.textContent = "Set crop region to enable detection";
+              status.className = "status unconfigured";
+            } else {
+              status.textContent = "Ready for detection";
+              status.className = "status unknown";
+            }
+          })
+          .catch((err) => showToast("Failed to load references", "error"));
+      }
+
+      function renderReferenceGrid(state, refs) {
+        const grid = document.getElementById(state + "Grid");
+        const count = document.getElementById(state + "Count");
+        const wrapper = document.getElementById(state + "GridWrapper");
+
+        count.textContent = `(${refs.length})`;
+        grid.innerHTML = "";
+
+        refs.forEach((ref) => {
+          const item = document.createElement("div");
+          item.className = "ref-item";
+          item.innerHTML = `
+                    <img src="${ref.thumbnail}" alt="${state}">
+                    <button class="ref-delete" onclick="confirmDelete('${state}', '${ref.filename}')" title="Delete">×</button>
+                `;
+          grid.appendChild(item);
+
+          const img = item.querySelector("img");
+          if (img) img.addEventListener("load", () => updateRefCollapse(state));
+        });
+
+        setTimeout(() => updateRefCollapse(state), 60);
+      }
+
+      function toggleRefCollapse(state) {
+        const wrapper = document.getElementById(state + "GridWrapper");
+        const btn = document.getElementById(state + "Toggle");
+        if (!wrapper || !btn) return;
+        wrapper.classList.toggle("collapsed");
+        updateRefCollapse(state);
+      }
+
+      function updateRefCollapse(state) {
+        const grid = document.getElementById(state + "Grid");
+        const wrapper = document.getElementById(state + "GridWrapper");
+        const btn = document.getElementById(state + "Toggle");
+
+        if (!grid || !wrapper || !btn) return;
+
+        const children = grid.children.length;
+        if (children <= 2) {
+          btn.style.display = "none";
+          wrapper.classList.remove("collapsed");
+          return;
+        }
+
+        btn.style.display = "inline-block";
+        btn.textContent = wrapper.classList.contains("collapsed")
+          ? "Show more"
+          : "Show less";
+      }
+
+      //   function updateRefCollapse(state) {
+      //     const grid = document.getElementById(state + "Grid");
+      //     const wrapper = document.getElementById(state + "GridWrapper");
+      //     const btn = document.getElementById(state + "Toggle");
+      //     if (!grid || !wrapper || !btn) return;
+
+      //     const children = Array.from(grid.children || []);
+      //     const cols = getComputedStyle(grid).gridTemplateColumns
+      //       ? getComputedStyle(grid)
+      //           .gridTemplateColumns.split(" ")
+      //           .filter(Boolean).length
+      //       : 1;
+      //     const rows = Math.ceil(children.length / cols);
+
+      //     if (rows <= 2) {
+      //       btn.style.display = "none";
+      //       wrapper.classList.remove("collapsed");
+      //       wrapper.style.maxHeight = "";
+      //       return;
+      //     }
+
+      //     btn.style.display = "inline-block";
+
+      //     if (wrapper.classList.contains("collapsed")) {
+      //       const visibleCount = Math.min(children.length, cols * 2);
+      //       const visibleChildren = children.slice(0, visibleCount);
+      //       if (visibleChildren.length === 0) {
+      //         wrapper.style.maxHeight = "";
+      //         wrapper.style.overflow = "";
+      //         btn.textContent = "Show more";
+      //         return;
+      //       }
+
+      //       let topMost = Infinity;
+      //       let bottomMost = -Infinity;
+      //       visibleChildren.forEach((ch) => {
+      //         const r = ch.getBoundingClientRect();
+      //         if (r.top < topMost) topMost = r.top;
+      //         if (r.bottom > bottomMost) bottomMost = r.bottom;
+      //       });
+
+      //       const gap = parseFloat(getComputedStyle(grid).gap) || 8;
+      //       const gridStyle = getComputedStyle(grid);
+      //       const marginTop = parseFloat(gridStyle.marginTop) || 0;
+      //       const marginBottom = parseFloat(gridStyle.marginBottom) || 0;
+
+      //       // Compute height based on children's bounding boxes and include grid margins
+      //       const visibleHeight = Math.round(bottomMost - topMost);
+      //       const padding = 4; // small safety padding
+      //       const maxHeight =
+      //         visibleHeight +
+      //         Math.round(gap) +
+      //         Math.round(marginTop + marginBottom) +
+      //         padding;
+
+      //       wrapper.style.maxHeight = maxHeight + "px";
+      //       wrapper.style.overflow = "hidden";
+      //       btn.textContent = "Show more";
+      //     } else {
+      //       wrapper.style.maxHeight = "";
+      //       wrapper.style.overflow = "";
+      //       btn.textContent = "Show less";
+      //     }
+      //   }
+
+      function confirmDelete(state, filename) {
+        showConfirm(
+          "Delete Reference",
+          `Are you sure you want to delete this ${state} reference? This cannot be undone.`,
+          () => deleteReference(state, filename),
+        );
+      }
+
+      function deleteReference(state, filename) {
+        fetch(`/api/reference/${state}/${filename}`, { method: "DELETE" })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.success) {
+              showToast(`${state} reference deleted`, "success");
+              loadReferences();
+            } else {
+              showToast("Failed to delete reference", "error");
+            }
+          })
+          .catch((err) => showToast("Error deleting reference", "error"));
+      }
+
+      function loadCurrentCrop() {
+        fetch("/api/crop")
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.coords) {
+              savedCrop = data.coords;
+              currentCrop = [...savedCrop];
+              updateBox();
+            }
+            updateTestButton();
+          })
+          .catch(console.error);
+      }
+
+      function captureReference(state) {
+        fetch("/api/capture", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: state }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.success) {
+              showToast(`${state.toUpperCase()} reference captured`, "success");
+              loadReferences();
+            } else {
+              showToast(data.error || "Capture failed", "error");
+            }
+          })
+          .catch((err) => showToast("Error capturing reference", "error"));
+      }
+
+      function uploadReference(state) {
+        document
+          .getElementById(
+            "file" + state.charAt(0).toUpperCase() + state.slice(1),
+          )
+          .click();
+      }
+
+      function handleUpload(state, input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("image", file);
+        formData.append("type", state);
+
+        fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.success) {
+              showToast(`${state.toUpperCase()} reference uploaded`, "success");
+              loadReferences();
+            } else {
+              showToast(data.error || "Upload failed", "error");
+            }
+          })
+          .catch((err) => showToast("Error uploading reference", "error"));
+
+        input.value = "";
+      }
+
+      function saveCrop() {
+        if (!currentCrop) {
+          showToast("No crop selected", "warning");
+          return;
+        }
+
+        const normalized = [
+          Math.min(currentCrop[0], currentCrop[2]),
+          Math.min(currentCrop[1], currentCrop[3]),
+          Math.max(currentCrop[0], currentCrop[2]),
+          Math.max(currentCrop[1], currentCrop[3]),
+        ];
+
+        fetch("/api/crop", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ coords: normalized }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.success) {
+              savedCrop = normalized;
+              currentCrop = [...savedCrop];
+              updateBox();
+              loadReferences();
+              showToast("Crop saved successfully", "success");
+            } else {
+              showToast(data.error || "Save failed", "error");
+            }
+          })
+          .catch((err) => showToast("Error saving crop", "error"));
+      }
+
+      function testDetection() {
+        const status = document.getElementById("detectionStatus");
+        status.textContent = "Testing...";
+        status.className = "status unknown";
+
+        fetch("/api/detect")
+          .then((r) => r.json())
+          .then((data) => {
+            // Convert decimal confidence to percentage
+            const confidence = data.confidence || 0;
+            const confidencePct = (confidence * 100).toFixed(2);
+            status.textContent = `${data.state.toUpperCase()} (${confidencePct}% confidence)`;
+            status.className = `status ${data.state === "error" || data.state === "unconfigured" ? "unknown" : data.state}`;
+          })
+          .catch((err) => {
+            status.textContent = "Detection failed";
+            status.className = "status unknown";
+            showToast("Detection error: " + err, "error");
+          });
+      }
+
+      // Input change handlers
+      Object.values(inputs).forEach((input) => {
+        input.addEventListener("change", () => {
+          currentCrop = [
+            parseInt(inputs.x1.value) || 0,
+            parseInt(inputs.y1.value) || 0,
+            parseInt(inputs.x2.value) || 0,
+            parseInt(inputs.y2.value) || 0,
+          ];
+          updateBox();
+          updateTestButton();
+        });
+      });
+
+      // Initialize
+      loadFrame();
+      loadReferences();
+      loadCurrentCrop();
+      setInterval(loadFrame, 2000);
+    </script>
+  </body>
+</html>
