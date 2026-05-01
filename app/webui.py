@@ -212,6 +212,8 @@ def get_config():
         'detector_debug': os.environ.get('DETECTOR_DEBUG', '0'),
         'min_confidence': os.environ.get('MIN_CONFIDENCE', '0.7'),
         'align_search_pixels': os.environ.get('ALIGN_SEARCH_PIXELS', '10'),
+        'conf_alpha': os.environ.get('CONF_ALPHA', '50.0'),
+        'conf_power': os.environ.get('CONF_POWER', '0.75'),
     }
     return jsonify(config)
 

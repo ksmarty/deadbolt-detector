@@ -237,20 +237,21 @@ class DeadboltDetector:
             chosen = best_unlocked
             other = best_locked
 
-        # New confidence formula:
-        # confidence = chosen * sigmoid(alpha * (chosen - other))
-        # - Uses the difference (delta) for sensitivity to the margin
-        # - Multiplies by absolute chosen similarity so low absolute
-        #   similarities remain low-confidence even if relatively higher
-        # Alpha is tunable via CONF_ALPHA env var (default 50.0)
+        # Confidence formula:
+        # confidence = (chosen ^ power) * sigmoid(alpha * delta)
+        # - Power boosts the raw similarity score (0.9 -> ~0.95 with power=0.7)
+        # - Sigmoid uses difference (delta) for margin sensitivity
+        # Tunable via CONF_ALPHA (default 50.0) and CONF_POWER (default 0.75)
         alpha = float(os.getenv('CONF_ALPHA', '50.0'))
+        power = float(os.getenv('CONF_POWER', '0.75'))
         delta = float(chosen) - float(other)
         try:
             p = 1.0 / (1.0 + math.exp(-alpha * delta))
         except OverflowError:
             p = 0.0 if (alpha * delta) < 0 else 1.0
 
-        confidence = float(chosen) * float(p)
+        boosted = float(chosen) ** power
+        confidence = boosted * float(p)
 
         # Debug output when enabled
         if os.getenv('DETECTOR_DEBUG') == '1':

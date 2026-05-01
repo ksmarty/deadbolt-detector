@@ -1039,7 +1039,7 @@
 
               row.innerHTML = `
                 <span class="config-key">${key}</span>
-                <span class="config-env-value" title="${value}">Env: ${value}</span>
+                <span class="config-env-value" title="${value}">${value}</span>
                 <div style="display: flex; align-items: center; gap: 12px;">
                   <div class="config-toggle">
                     <input type="checkbox" id="override_${key}" ${isEnabled ? 'checked' : ''} onchange="toggleOverride('${key}')">
