@@ -133,17 +133,53 @@ class DeadboltDetector:
             return None
 
     def compare(self, frame, reference):
-        """Calculate normalized similarity score (0-1, higher is better match)."""
+        """Calculate normalized similarity score (0-1, higher is better match).
+        
+        Uses normalized cross-correlation with sliding window to handle slight
+        camera position changes. Searches a small window around the center
+        to find the best alignment between frame and reference.
+        """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         if gray.shape != reference.shape:
             gray = cv2.resize(gray, (reference.shape[1], reference.shape[0]))
 
-        # Mean absolute difference normalized to 0-1 similarity
-        diff = cv2.absdiff(gray, reference)
-        mae = np.mean(diff)  # 0 = identical, 255 = completely different
+        ref_h, ref_w = reference.shape
+        search_range = int(os.getenv('ALIGN_SEARCH_PIXELS', '10'))
 
-        # Convert to similarity percentage (0-1 scale)
+        if search_range > 0 and gray.shape[0] > ref_h + 2*search_range and gray.shape[1] > ref_w + 2*search_range:
+            best_score = -1
+            h, w = gray.shape
+
+            for dy in range(-search_range, search_range + 1):
+                for dx in range(-search_range, search_range + 1):
+                    y_start = search_range + dy
+                    y_end = y_start + ref_h
+                    x_start = search_range + dx
+                    x_end = x_start + ref_w
+
+                    if y_end <= h and x_end <= w:
+                        window = gray[y_start:y_end, x_start:x_end]
+
+                        mean_ref = np.mean(reference)
+                        mean_win = np.mean(window)
+
+                        ref_centered = reference.astype(np.float32) - mean_ref
+                        win_centered = window.astype(np.float32) - mean_win
+
+                        norm_ref = np.sqrt(np.sum(ref_centered ** 2))
+                        norm_win = np.sqrt(np.sum(win_centered ** 2))
+
+                        if norm_ref > 0 and norm_win > 0:
+                            ncc = np.sum(ref_centered * win_centered) / (norm_ref * norm_win)
+                            ncc = max(0, ncc)
+                            if ncc > best_score:
+                                best_score = ncc
+
+            return best_score if best_score >= 0 else 0.0
+
+        diff = cv2.absdiff(gray, reference)
+        mae = np.mean(diff)
         similarity = 1.0 - (mae / 255.0)
         return similarity
 
