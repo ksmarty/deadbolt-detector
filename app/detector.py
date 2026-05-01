@@ -135,14 +135,16 @@ class DeadboltDetector:
     def compare(self, frame, reference):
         """Calculate normalized similarity score (0-1, higher is better match).
         
-        Uses normalized cross-correlation with sliding window to handle slight
-        camera position changes. Searches a small window around the center
-        to find the best alignment between frame and reference.
+        Uses normalized cross-correlation with histogram normalization to handle
+        both slight camera position changes and lighting variations.
         """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         if gray.shape != reference.shape:
             gray = cv2.resize(gray, (reference.shape[1], reference.shape[0]))
+
+        gray = self._normalize_lighting(gray, reference)
+        reference = self._normalize_lighting(reference, reference)
 
         ref_h, ref_w = reference.shape
         search_range = int(os.getenv('ALIGN_SEARCH_PIXELS', '10'))
@@ -176,12 +178,30 @@ class DeadboltDetector:
                             if ncc > best_score:
                                 best_score = ncc
 
-            return best_score if best_score >= 0 else 0.0
+            if best_score < 0:
+                return 0.0
+
+            score = best_score ** 0.5
+            return score
 
         diff = cv2.absdiff(gray, reference)
         mae = np.mean(diff)
         similarity = 1.0 - (mae / 255.0)
         return similarity
+
+    def _normalize_lighting(self, img, reference):
+        """Normalize img to match reference's histogram for lighting invariance."""
+        ref_mean = np.mean(reference)
+        ref_std = np.std(reference)
+        
+        img_mean = np.mean(img)
+        img_std = np.std(img)
+        
+        if img_std > 0:
+            normalized = ((img - img_mean) / img_std) * ref_std + ref_mean
+            normalized = np.clip(normalized, 0, 255).astype(np.uint8)
+            return normalized
+        return img
 
     def detect(self):
         """Run detection comparing against all reference images."""
