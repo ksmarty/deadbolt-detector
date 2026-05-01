@@ -310,6 +310,14 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .ref-header-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
 
       /* Fixed aspect ratio grid */
@@ -535,6 +543,57 @@
         background: #c62828;
         color: white;
       }
+
+      .config-list {
+        font-size: 0.85em;
+        line-height: 1.8;
+      }
+      .config-list .config-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+        border-bottom: 1px solid #333;
+      }
+      .config-list .config-key {
+        color: #888;
+      }
+      .config-list .config-value {
+        color: #ccc;
+        font-family: monospace;
+        max-width: 250px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .ref-item .ref-checkbox {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        width: 20px;
+        height: 20px;
+        accent-color: #4caf50;
+        cursor: pointer;
+      }
+
+      .ref-delete-all {
+        background: #c62828;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.75em;
+        margin-left: auto;
+      }
+      .ref-delete-all:hover {
+        background: #d32f2f;
+      }
+      .ref-delete-all:disabled {
+        background: #444;
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
     </style>
   </head>
   <body>
@@ -559,6 +618,17 @@
       </div>
     </div>
 
+    <!-- Config modal -->
+    <div class="modal-overlay" id="configModal">
+      <div class="modal" style="max-width: 450px;">
+        <h3>Configuration</h3>
+        <div id="configContent" class="config-list"></div>
+        <div class="modal-buttons">
+          <button class="btn-cancel" onclick="closeConfigModal()">Close</button>
+        </div>
+      </div>
+    </div>
+
     <div class="header">
       <h1>Deadbolt Detector</h1>
       <label>X1: <input type="number" id="x1" placeholder="0" /></label>
@@ -569,6 +639,7 @@
       <button class="secondary" onclick="clearCurrentSelection()">
         Clear current selection
       </button>
+      <button class="secondary" onclick="showConfigModal()">Config</button>
     </div>
 
     <div class="main">
@@ -593,13 +664,19 @@
         <h2>Detection Status</h2>
         <div id="detectionStatus" class="status unknown">Loading...</div>
 
+        <div class="test-section">
+          <button onclick="testDetection()" id="btnTest" disabled>
+            Test Detection
+          </button>
+        </div>
+
         <h3>Current Crop</h3>
         <div id="currentCrop" class="help">No crop set</div>
 
         <div class="ref-section">
           <h4>
-            Reference: LOCKED
-            <div class="ref-header-actions">
+            <div class="ref-header-left">
+              Reference: LOCKED
               <span class="ref-count" id="lockedCount">(0)</span>
               <button
                 class="ref-toggle"
@@ -610,6 +687,14 @@
                 Show more
               </button>
             </div>
+            <button
+              class="ref-delete-all"
+              id="lockedDeleteBtn"
+              onclick="deleteSelected('locked')"
+              disabled
+            >
+              Delete Selected (0)
+            </button>
           </h4>
           <div class="ref-grid-wrapper collapsed" id="lockedGridWrapper">
             <div class="ref-grid" id="lockedGrid"></div>
@@ -632,8 +717,8 @@
 
         <div class="ref-section">
           <h4>
-            Reference: UNLOCKED
-            <div class="ref-header-actions">
+            <div class="ref-header-left">
+              Reference: UNLOCKED
               <span class="ref-count" id="unlockedCount">(0)</span>
               <button
                 class="ref-toggle"
@@ -644,6 +729,14 @@
                 Show more
               </button>
             </div>
+            <button
+              class="ref-delete-all"
+              id="unlockedDeleteBtn"
+              onclick="deleteSelected('unlocked')"
+              disabled
+            >
+              Delete Selected (0)
+            </button>
           </h4>
           <div class="ref-grid-wrapper collapsed" id="unlockedGridWrapper">
             <div class="ref-grid" id="unlockedGrid"></div>
@@ -662,13 +755,6 @@
             accept="image/*"
             onchange="handleUpload('unlocked', this)"
           />
-        </div>
-
-        <!-- Test button moved below references -->
-        <div class="test-section">
-          <button onclick="testDetection()" id="btnTest" disabled>
-            Test Detection
-          </button>
         </div>
 
         <div class="help">
@@ -729,6 +815,9 @@
       // Modal state
       let pendingAction = null;
 
+      // Selected files for batch delete
+      let selectedFiles = { locked: new Set(), unlocked: new Set() };
+
       // Toast notifications
       function showToast(message, type = "info") {
         const toast = document.createElement("div");
@@ -761,6 +850,28 @@
           pendingAction();
           closeModal();
         }
+      }
+
+      // Config modal
+      function showConfigModal() {
+        fetch('/api/config')
+          .then(r => r.json())
+          .then(data => {
+            const content = document.getElementById('configContent');
+            content.innerHTML = '';
+            for (const [key, value] of Object.entries(data)) {
+              const row = document.createElement('div');
+              row.className = 'config-row';
+              row.innerHTML = `<span class="config-key">${key}</span><span class="config-value" title="${value}">${value}</span>`;
+              content.appendChild(row);
+            }
+            document.getElementById('configModal').classList.add('active');
+          })
+          .catch(err => showToast('Failed to load config', 'error'));
+      }
+
+      function closeConfigModal() {
+        document.getElementById('configModal').classList.remove('active');
       }
 
       // Track shift key
@@ -1199,6 +1310,10 @@
         const count = document.getElementById(state + "Count");
         const wrapper = document.getElementById(state + "GridWrapper");
 
+        // Clear selection when reloading
+        selectedFiles[state].clear();
+        updateDeleteButton(state);
+
         count.textContent = `(${refs.length})`;
         grid.innerHTML = "";
 
@@ -1206,6 +1321,7 @@
           const item = document.createElement("div");
           item.className = "ref-item";
           item.innerHTML = `
+                    <input type="checkbox" class="ref-checkbox" onchange="toggleSelect('${state}', '${ref.filename}', this.checked)">
                     <img src="${ref.thumbnail}" alt="${state}">
                     <button class="ref-delete" onclick="confirmDelete('${state}', '${ref.filename}')" title="Delete">×</button>
                 `;
@@ -1216,6 +1332,52 @@
         });
 
         setTimeout(() => updateRefCollapse(state), 60);
+      }
+
+      function toggleSelect(state, filename, checked) {
+        if (checked) {
+          selectedFiles[state].add(filename);
+        } else {
+          selectedFiles[state].delete(filename);
+        }
+        updateDeleteButton(state);
+      }
+
+      function updateDeleteButton(state) {
+        const btn = document.getElementById(state + "DeleteBtn");
+        if (btn) {
+          const count = selectedFiles[state].size;
+          btn.textContent = `Delete Selected (${count})`;
+          btn.disabled = count === 0;
+        }
+      }
+
+      function deleteSelected(state) {
+        const count = selectedFiles[state].size;
+        if (count === 0) return;
+
+        showConfirm(
+          "Delete Multiple References",
+          `Are you sure you want to delete ${count} ${state} reference${count > 1 ? 's' : ''}? This cannot be undone.`,
+          () => {
+            const filenames = Array.from(selectedFiles[state]);
+            fetch('/api/references/batch-delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ state, filenames })
+            })
+              .then(r => r.json())
+              .then(data => {
+                if (data.success) {
+                  showToast(`Deleted ${data.deleted} ${state} references`, "success");
+                  loadReferences();
+                } else {
+                  showToast("Failed to delete references", "error");
+                }
+              })
+              .catch(err => showToast("Error deleting references", "error"));
+          }
+        );
       }
 
       function toggleRefCollapse(state) {
