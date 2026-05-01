@@ -544,9 +544,58 @@
         color: white;
       }
 
-      .config-list {
+.config-list {
+        font-size: 1.1em;
+        line-height: 2;
+      }
+      .config-list .config-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #333;
+        align-items: center;
+      }
+      .config-list .config-key {
+        color: #888;
+        font-weight: bold;
+        min-width: 200px;
+      }
+      .config-list .config-env-value {
+        color: #666;
+        font-family: monospace;
+        font-size: 0.9em;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .config-list .config-input {
+        background: #222;
+        border: 1px solid #444;
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-family: monospace;
+        width: 250px;
+        font-size: 1em;
+      }
+      .config-list .config-input:disabled {
+        opacity: 0.5;
+      }
+      .config-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-right: 12px;
+      }
+      .config-toggle input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        accent-color: #4caf50;
+      }
+      .config-toggle span {
         font-size: 0.85em;
-        line-height: 1.8;
+        color: #aaa;
       }
       .config-list .config-row {
         display: flex;
@@ -622,9 +671,9 @@
         width: 100%;
       }
       .history-info {
-        font-size: 0.75em;
+        font-size: 0.85em;
         color: #888;
-        min-width: 50px;
+        min-width: 60px;
         text-align: center;
       }
       .history-actions {
@@ -633,8 +682,8 @@
       }
       .history-save, .history-delete {
         flex: 1;
-        padding: 6px;
-        font-size: 0.75em;
+        padding: 8px;
+        font-size: 0.85em;
         border: none;
         border-radius: 4px;
         cursor: pointer;
@@ -652,6 +701,11 @@
       }
       .history-delete:hover {
         background: #d32f2f;
+      }
+      .history-delete:disabled {
+        background: #444;
+        cursor: not-allowed;
+        opacity: 0.5;
       }
 
       .ref-item .ref-checkbox {
@@ -708,15 +762,15 @@
 
     <!-- Config modal -->
     <div class="modal-overlay" id="configModal">
-      <div class="modal" style="max-width: 600px; max-height: 80vh; display: block; overflow: hidden;">
+      <div class="modal" style="width: 75vw; max-width: 1200px; max-height: 85vh; display: block; overflow: hidden;">
         <div style="padding-bottom: 15px; border-bottom: 1px solid #333; margin-bottom: 15px;">
-          <h3>Configuration</h3>
-          <p style="font-size: 0.75em; color: #888; margin-top: 5px;">Override values with local settings. Toggle off to use env var.</p>
+          <h3 style="font-size: 1.4em;">Configuration</h3>
+          <p style="font-size: 0.9em; color: #888; margin-top: 5px;">Override values with local settings. Toggle off to use env var.</p>
         </div>
-        <div id="configContent" class="config-list" style="max-height: calc(80vh - 130px); overflow-y: auto;"></div>
+        <div id="configContent" class="config-list" style="max-height: calc(85vh - 150px); overflow-y: auto;"></div>
         <div class="modal-buttons">
-          <button class="btn-cancel" onclick="saveConfig()" style="background: #4caf50;">Save</button>
-          <button class="btn-cancel" onclick="closeConfigModal()">Close</button>
+          <button class="btn-cancel" onclick="saveConfig()" style="background: #4caf50; font-size: 1em; padding: 10px 20px;">Save</button>
+          <button class="btn-cancel" onclick="closeConfigModal()" style="font-size: 1em; padding: 10px 20px;">Close</button>
         </div>
       </div>
     </div>
@@ -765,17 +819,20 @@
         <h3>Current Crop</h3>
         <div id="currentCrop" class="help">No crop set</div>
 
-        <div class="crop-history" id="cropHistory" style="display: none;">
+        <div class="crop-history" id="cropHistory">
           <h3>Crop History</h3>
-          <div class="history-slider-container">
+          <div class="history-empty" id="historyEmpty" style="display: none;">
+            <p style="font-size: 0.8em; color: #666; margin-bottom: 10px;">No saved crops yet. Set a crop and click Save to add it.</p>
+          </div>
+          <div class="history-slider-container" id="historySliderContainer" style="display: none;">
             <input type="range" id="cropHistorySlider" class="history-slider" min="0" max="0" value="0" oninput="loadCropHistory(this.value)">
             <div class="history-info">
               <span id="cropHistoryIndex">0</span> / <span id="cropHistoryCount">0</span>
             </div>
           </div>
           <div class="history-actions">
-            <button onclick="saveToHistory()" class="history-save" title="Save current crop to history">Save</button>
-            <button onclick="deleteHistoryItem()" class="history-delete" title="Delete current history item">Delete</button>
+            <button onclick="saveToHistory()" class="history-save" title="Save current crop to history">Save Current</button>
+            <button onclick="deleteHistoryItem()" id="historyDeleteBtn" class="history-delete" title="Delete current history item" disabled>Delete</button>
           </div>
         </div>
 
@@ -978,16 +1035,17 @@
 
               const override = saved[key];
               const isEnabled = override !== undefined && override !== '';
-              const overrideValue = isEnabled ? override : value;
+              const overrideValue = isEnabled ? override : '';
 
               row.innerHTML = `
                 <span class="config-key">${key}</span>
-                <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="config-env-value" title="${value}">Env: ${value}</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
                   <div class="config-toggle">
                     <input type="checkbox" id="override_${key}" ${isEnabled ? 'checked' : ''} onchange="toggleOverride('${key}')">
                     <span>Override</span>
                   </div>
-                  <input type="text" class="config-input" id="value_${key}" value="${overrideValue}" ${!isEnabled ? 'disabled' : ''} placeholder="${value}">
+                  <input type="text" class="config-input" id="value_${key}" value="${overrideValue}" placeholder="Override value">
                 </div>
               `;
               content.appendChild(row);
@@ -999,11 +1057,6 @@
 
       function toggleOverride(key) {
         const checkbox = document.getElementById('override_' + key);
-        const input = document.getElementById('value_' + key);
-        input.disabled = !checkbox.checked;
-        if (!checkbox.checked) {
-          input.placeholder = currentConfig[key] || '';
-        }
       }
 
       function saveConfig() {
@@ -1013,8 +1066,8 @@
           const checkbox = document.getElementById('override_' + key);
           const input = document.getElementById('value_' + key);
 
-          if (checkbox && checkbox.checked) {
-            saved[key] = input.value;
+          if (checkbox && checkbox.checked && input.value.trim()) {
+            saved[key] = input.value.trim();
           } else {
             delete saved[key];
           }
@@ -1730,21 +1783,27 @@
       }
 
       function updateCropHistoryUI() {
-        const container = document.getElementById('cropHistory');
+        const emptyMsg = document.getElementById('historyEmpty');
+        const sliderContainer = document.getElementById('historySliderContainer');
         const slider = document.getElementById('cropHistorySlider');
         const indexLabel = document.getElementById('cropHistoryIndex');
         const countLabel = document.getElementById('cropHistoryCount');
+        const deleteBtn = document.getElementById('historyDeleteBtn');
 
         if (cropHistory.length === 0) {
-          container.style.display = 'none';
+          emptyMsg.style.display = 'block';
+          sliderContainer.style.display = 'none';
+          deleteBtn.disabled = true;
           return;
         }
 
-        container.style.display = 'block';
+        emptyMsg.style.display = 'none';
+        sliderContainer.style.display = 'flex';
         slider.max = cropHistory.length - 1;
         countLabel.textContent = cropHistory.length;
         indexLabel.textContent = currentHistoryIndex + 1;
         slider.value = currentHistoryIndex;
+        deleteBtn.disabled = false;
       }
 
       function loadCropHistory(idx) {
