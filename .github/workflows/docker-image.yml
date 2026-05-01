@@ -29,6 +29,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Determine tags
+        id: tags
+        run: |
+          BRANCH=${{ github.ref_name }}
+          TAGS="ghcr.io/${{ github.repository }}:${{ github.sha }}"
+          
+          if [[ "$BRANCH" == "main" ]]; then
+            TAGS="$TAGS
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:main"
+          else
+            SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9._-]/-/g')
+            TAGS="$TAGS
+            ghcr.io/${{ github.repository }}:$SAFE_BRANCH"
+          fi
+          
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+
       - name: Build and push image
         uses: docker/build-push-action@v7
         with:
@@ -36,6 +54,4 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          tags: ${{ steps.tags.outputs.tags }}
