@@ -133,19 +133,75 @@ class DeadboltDetector:
             return None
 
     def compare(self, frame, reference):
-        """Calculate normalized similarity score (0-1, higher is better match)."""
+        """Calculate normalized similarity score (0-1, higher is better match).
+        
+        Uses normalized cross-correlation with histogram normalization to handle
+        both slight camera position changes and lighting variations.
+        """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         if gray.shape != reference.shape:
             gray = cv2.resize(gray, (reference.shape[1], reference.shape[0]))
 
-        # Mean absolute difference normalized to 0-1 similarity
-        diff = cv2.absdiff(gray, reference)
-        mae = np.mean(diff)  # 0 = identical, 255 = completely different
+        gray = self._normalize_lighting(gray, reference)
+        reference = self._normalize_lighting(reference, reference)
 
-        # Convert to similarity percentage (0-1 scale)
+        ref_h, ref_w = reference.shape
+        search_range = int(os.getenv('ALIGN_SEARCH_PIXELS', '10'))
+
+        if search_range > 0 and gray.shape[0] > ref_h + 2*search_range and gray.shape[1] > ref_w + 2*search_range:
+            best_score = -1
+            h, w = gray.shape
+
+            for dy in range(-search_range, search_range + 1):
+                for dx in range(-search_range, search_range + 1):
+                    y_start = search_range + dy
+                    y_end = y_start + ref_h
+                    x_start = search_range + dx
+                    x_end = x_start + ref_w
+
+                    if y_end <= h and x_end <= w:
+                        window = gray[y_start:y_end, x_start:x_end]
+
+                        mean_ref = np.mean(reference)
+                        mean_win = np.mean(window)
+
+                        ref_centered = reference.astype(np.float32) - mean_ref
+                        win_centered = window.astype(np.float32) - mean_win
+
+                        norm_ref = np.sqrt(np.sum(ref_centered ** 2))
+                        norm_win = np.sqrt(np.sum(win_centered ** 2))
+
+                        if norm_ref > 0 and norm_win > 0:
+                            ncc = np.sum(ref_centered * win_centered) / (norm_ref * norm_win)
+                            ncc = max(0, ncc)
+                            if ncc > best_score:
+                                best_score = ncc
+
+            if best_score < 0:
+                return 0.0
+
+            score = best_score ** 0.5
+            return score
+
+        diff = cv2.absdiff(gray, reference)
+        mae = np.mean(diff)
         similarity = 1.0 - (mae / 255.0)
         return similarity
+
+    def _normalize_lighting(self, img, reference):
+        """Normalize img to match reference's histogram for lighting invariance."""
+        ref_mean = np.mean(reference)
+        ref_std = np.std(reference)
+        
+        img_mean = np.mean(img)
+        img_std = np.std(img)
+        
+        if img_std > 0:
+            normalized = ((img - img_mean) / img_std) * ref_std + ref_mean
+            normalized = np.clip(normalized, 0, 255).astype(np.uint8)
+            return normalized
+        return img
 
     def detect(self):
         """Run detection comparing against all reference images."""
@@ -181,20 +237,21 @@ class DeadboltDetector:
             chosen = best_unlocked
             other = best_locked
 
-        # New confidence formula:
-        # confidence = chosen * sigmoid(alpha * (chosen - other))
-        # - Uses the difference (delta) for sensitivity to the margin
-        # - Multiplies by absolute chosen similarity so low absolute
-        #   similarities remain low-confidence even if relatively higher
-        # Alpha is tunable via CONF_ALPHA env var (default 50.0)
+        # Confidence formula:
+        # confidence = (chosen ^ power) * sigmoid(alpha * delta)
+        # - Power boosts the raw similarity score (0.9 -> ~0.95 with power=0.7)
+        # - Sigmoid uses difference (delta) for margin sensitivity
+        # Tunable via CONF_ALPHA (default 50.0) and CONF_POWER (default 0.75)
         alpha = float(os.getenv('CONF_ALPHA', '50.0'))
+        power = float(os.getenv('CONF_POWER', '0.75'))
         delta = float(chosen) - float(other)
         try:
             p = 1.0 / (1.0 + math.exp(-alpha * delta))
         except OverflowError:
             p = 0.0 if (alpha * delta) < 0 else 1.0
 
-        confidence = float(chosen) * float(p)
+        boosted = float(chosen) ** power
+        confidence = boosted * float(p)
 
         # Debug output when enabled
         if os.getenv('DETECTOR_DEBUG') == '1':

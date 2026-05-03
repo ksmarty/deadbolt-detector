@@ -183,6 +183,40 @@ def delete_reference(state, filename):
     success = detector.delete_reference(state, filename)
     return jsonify({'success': success})
 
+@app.route('/api/references/batch-delete', methods=['POST'])
+def batch_delete_references():
+    """Delete multiple reference images."""
+    data = request.get_json()
+    state = data.get('state')
+    filenames = data.get('filenames', [])
+
+    if state not in ['locked', 'unlocked']:
+        return jsonify({'success': False, 'error': 'Invalid state'}), 400
+
+    deleted = 0
+    for filename in filenames:
+        if detector.delete_reference(state, filename):
+            deleted += 1
+
+    return jsonify({'success': True, 'deleted': deleted})
+
+@app.route('/api/config')
+def get_config():
+    """Return current configuration info."""
+    import os
+    config = {
+        'camera_url': os.environ.get('CAMERA_URL', 'Not set'),
+        'mqtt_host': os.environ.get('MQTT_HOST', 'Not set'),
+        'mqtt_port': os.environ.get('MQTT_PORT', 'Not set'),
+        'mqtt_user': os.environ.get('MQTT_USER', 'Not set'),
+        'detector_debug': os.environ.get('DETECTOR_DEBUG', '0'),
+        'min_confidence': os.environ.get('MIN_CONFIDENCE', '0.7'),
+        'align_search_pixels': os.environ.get('ALIGN_SEARCH_PIXELS', '10'),
+        'conf_alpha': os.environ.get('CONF_ALPHA', '50.0'),
+        'conf_power': os.environ.get('CONF_POWER', '0.75'),
+    }
+    return jsonify(config)
+
 @app.route('/api/detect')
 def test_detect():
     """Run detection on current frame."""

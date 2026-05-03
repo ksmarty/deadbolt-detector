@@ -310,6 +310,14 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .ref-header-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
 
       /* Fixed aspect ratio grid */
@@ -535,6 +543,199 @@
         background: #c62828;
         color: white;
       }
+
+.config-list {
+        font-size: 1.1em;
+        line-height: 2;
+      }
+      .config-list .config-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #333;
+        align-items: center;
+      }
+      .config-list .config-key {
+        color: #888;
+        font-weight: bold;
+        min-width: 200px;
+      }
+      .config-list .config-env-value {
+        color: #666;
+        font-family: monospace;
+        font-size: 0.9em;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .config-list .config-input {
+        background: #222;
+        border: 1px solid #444;
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-family: monospace;
+        width: 250px;
+        font-size: 1em;
+      }
+      .config-list .config-input:disabled {
+        opacity: 0.5;
+      }
+      .config-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-right: 12px;
+      }
+      .config-toggle input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        accent-color: #4caf50;
+      }
+      .config-toggle span {
+        font-size: 0.85em;
+        color: #aaa;
+      }
+      .config-list .config-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+        border-bottom: 1px solid #333;
+      }
+      .config-list .config-key {
+        color: #888;
+      }
+      .config-list .config-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        border-bottom: 1px solid #333;
+        align-items: center;
+      }
+      .config-list .config-value {
+        color: #ccc;
+        font-family: monospace;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .config-list .config-input {
+        background: #222;
+        border: 1px solid #444;
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-family: monospace;
+        width: 180px;
+        font-size: 0.85em;
+      }
+      .config-list .config-input:disabled {
+        opacity: 0.5;
+      }
+      .config-toggle {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-right: 8px;
+      }
+      .config-toggle input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #4caf50;
+      }
+      .config-toggle span {
+        font-size: 0.7em;
+        color: #888;
+      }
+
+      .crop-history {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #444;
+      }
+      .crop-history h3 {
+        font-size: 0.85em;
+        margin: 0 0 10px;
+        color: #aaa;
+      }
+      .history-slider-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .history-slider {
+        flex: 1;
+        width: 100%;
+      }
+      .history-info {
+        font-size: 0.85em;
+        color: #888;
+        min-width: 60px;
+        text-align: center;
+      }
+      .history-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .history-save, .history-delete {
+        flex: 1;
+        padding: 8px;
+        font-size: 0.85em;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .history-save {
+        background: #4caf50;
+        color: white;
+      }
+      .history-delete {
+        background: #c62828;
+        color: white;
+      }
+      .history-save:hover {
+        background: #388e3c;
+      }
+      .history-delete:hover {
+        background: #d32f2f;
+      }
+      .history-delete:disabled {
+        background: #444;
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+
+      .ref-item .ref-checkbox {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        width: 20px;
+        height: 20px;
+        accent-color: #4caf50;
+        cursor: pointer;
+      }
+
+      .ref-delete-all {
+        background: #c62828;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.75em;
+        margin-left: auto;
+      }
+      .ref-delete-all:hover {
+        background: #d32f2f;
+      }
+      .ref-delete-all:disabled {
+        background: #444;
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
     </style>
   </head>
   <body>
@@ -559,6 +760,21 @@
       </div>
     </div>
 
+    <!-- Config modal -->
+    <div class="modal-overlay" id="configModal">
+      <div class="modal" style="width: 75vw; max-width: 1200px; max-height: 85vh; display: block; overflow: hidden;">
+        <div style="padding-bottom: 15px; border-bottom: 1px solid #333; margin-bottom: 15px;">
+          <h3 style="font-size: 1.4em;">Configuration</h3>
+          <p style="font-size: 0.9em; color: #888; margin-top: 5px;">Override values with local settings. Toggle off to use env var.</p>
+        </div>
+        <div id="configContent" class="config-list" style="max-height: calc(85vh - 150px); overflow-y: auto;"></div>
+        <div class="modal-buttons">
+          <button class="btn-cancel" onclick="saveConfig()" style="background: #4caf50; font-size: 1em; padding: 10px 20px;">Save</button>
+          <button class="btn-cancel" onclick="closeConfigModal()" style="font-size: 1em; padding: 10px 20px;">Close</button>
+        </div>
+      </div>
+    </div>
+
     <div class="header">
       <h1>Deadbolt Detector</h1>
       <label>X1: <input type="number" id="x1" placeholder="0" /></label>
@@ -569,6 +785,7 @@
       <button class="secondary" onclick="clearCurrentSelection()">
         Clear current selection
       </button>
+      <button class="secondary" onclick="showConfigModal()">Config</button>
     </div>
 
     <div class="main">
@@ -593,13 +810,36 @@
         <h2>Detection Status</h2>
         <div id="detectionStatus" class="status unknown">Loading...</div>
 
+        <div class="test-section">
+          <button onclick="testDetection()" id="btnTest" disabled>
+            Test Detection
+          </button>
+        </div>
+
         <h3>Current Crop</h3>
         <div id="currentCrop" class="help">No crop set</div>
 
+        <div class="crop-history" id="cropHistory">
+          <h3>Crop History</h3>
+          <div class="history-empty" id="historyEmpty" style="display: none;">
+            <p style="font-size: 0.8em; color: #666; margin-bottom: 10px;">No saved crops yet. Set a crop and click Save to add it.</p>
+          </div>
+          <div class="history-slider-container" id="historySliderContainer" style="display: none;">
+            <input type="range" id="cropHistorySlider" class="history-slider" min="0" max="0" value="0" oninput="loadCropHistory(this.value)">
+            <div class="history-info">
+              <span id="cropHistoryIndex">0</span> / <span id="cropHistoryCount">0</span>
+            </div>
+          </div>
+          <div class="history-actions">
+            <button onclick="saveToHistory()" class="history-save" title="Save current crop to history">Save Current</button>
+            <button onclick="deleteHistoryItem()" id="historyDeleteBtn" class="history-delete" title="Delete current history item" disabled>Delete</button>
+          </div>
+        </div>
+
         <div class="ref-section">
           <h4>
-            Reference: LOCKED
-            <div class="ref-header-actions">
+            <div class="ref-header-left">
+              Reference: LOCKED
               <span class="ref-count" id="lockedCount">(0)</span>
               <button
                 class="ref-toggle"
@@ -610,6 +850,14 @@
                 Show more
               </button>
             </div>
+            <button
+              class="ref-delete-all"
+              id="lockedDeleteBtn"
+              onclick="deleteSelected('locked')"
+              disabled
+            >
+              Delete Selected (0)
+            </button>
           </h4>
           <div class="ref-grid-wrapper collapsed" id="lockedGridWrapper">
             <div class="ref-grid" id="lockedGrid"></div>
@@ -632,8 +880,8 @@
 
         <div class="ref-section">
           <h4>
-            Reference: UNLOCKED
-            <div class="ref-header-actions">
+            <div class="ref-header-left">
+              Reference: UNLOCKED
               <span class="ref-count" id="unlockedCount">(0)</span>
               <button
                 class="ref-toggle"
@@ -644,6 +892,14 @@
                 Show more
               </button>
             </div>
+            <button
+              class="ref-delete-all"
+              id="unlockedDeleteBtn"
+              onclick="deleteSelected('unlocked')"
+              disabled
+            >
+              Delete Selected (0)
+            </button>
           </h4>
           <div class="ref-grid-wrapper collapsed" id="unlockedGridWrapper">
             <div class="ref-grid" id="unlockedGrid"></div>
@@ -662,13 +918,6 @@
             accept="image/*"
             onchange="handleUpload('unlocked', this)"
           />
-        </div>
-
-        <!-- Test button moved below references -->
-        <div class="test-section">
-          <button onclick="testDetection()" id="btnTest" disabled>
-            Test Detection
-          </button>
         </div>
 
         <div class="help">
@@ -729,6 +978,9 @@
       // Modal state
       let pendingAction = null;
 
+      // Selected files for batch delete
+      let selectedFiles = { locked: new Set(), unlocked: new Set() };
+
       // Toast notifications
       function showToast(message, type = "info") {
         const toast = document.createElement("div");
@@ -761,6 +1013,73 @@
           pendingAction();
           closeModal();
         }
+      }
+
+      // Config modal
+      let currentConfig = {};
+
+      function showConfigModal() {
+        fetch('/api/config')
+          .then(r => r.json())
+          .then(data => {
+            currentConfig = data;
+            const content = document.getElementById('configContent');
+            content.innerHTML = '';
+
+            // Load local overrides from localStorage
+            const saved = JSON.parse(localStorage.getItem('configOverrides') || '{}');
+
+            for (const [key, value] of Object.entries(data)) {
+              const row = document.createElement('div');
+              row.className = 'config-row';
+
+              const override = saved[key];
+              const isEnabled = override !== undefined && override !== '';
+              const overrideValue = isEnabled ? override : '';
+
+              row.innerHTML = `
+                <span class="config-key">${key}</span>
+                <span class="config-env-value" title="${value}">${value}</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div class="config-toggle">
+                    <input type="checkbox" id="override_${key}" ${isEnabled ? 'checked' : ''} onchange="toggleOverride('${key}')">
+                    <span>Override</span>
+                  </div>
+                  <input type="text" class="config-input" id="value_${key}" value="${overrideValue}" placeholder="Override value">
+                </div>
+              `;
+              content.appendChild(row);
+            }
+            document.getElementById('configModal').classList.add('active');
+          })
+          .catch(err => showToast('Failed to load config', 'error'));
+      }
+
+      function toggleOverride(key) {
+        const checkbox = document.getElementById('override_' + key);
+      }
+
+      function saveConfig() {
+        const saved = JSON.parse(localStorage.getItem('configOverrides') || '{}');
+
+        for (const key of Object.keys(currentConfig)) {
+          const checkbox = document.getElementById('override_' + key);
+          const input = document.getElementById('value_' + key);
+
+          if (checkbox && checkbox.checked && input.value.trim()) {
+            saved[key] = input.value.trim();
+          } else {
+            delete saved[key];
+          }
+        }
+
+        localStorage.setItem('configOverrides', JSON.stringify(saved));
+        showToast('Configuration saved', 'success');
+        closeConfigModal();
+      }
+
+      function closeConfigModal() {
+        document.getElementById('configModal').classList.remove('active');
       }
 
       // Track shift key
@@ -1199,6 +1518,10 @@
         const count = document.getElementById(state + "Count");
         const wrapper = document.getElementById(state + "GridWrapper");
 
+        // Clear selection when reloading
+        selectedFiles[state].clear();
+        updateDeleteButton(state);
+
         count.textContent = `(${refs.length})`;
         grid.innerHTML = "";
 
@@ -1206,6 +1529,7 @@
           const item = document.createElement("div");
           item.className = "ref-item";
           item.innerHTML = `
+                    <input type="checkbox" class="ref-checkbox" onchange="toggleSelect('${state}', '${ref.filename}', this.checked)">
                     <img src="${ref.thumbnail}" alt="${state}">
                     <button class="ref-delete" onclick="confirmDelete('${state}', '${ref.filename}')" title="Delete">×</button>
                 `;
@@ -1216,6 +1540,52 @@
         });
 
         setTimeout(() => updateRefCollapse(state), 60);
+      }
+
+      function toggleSelect(state, filename, checked) {
+        if (checked) {
+          selectedFiles[state].add(filename);
+        } else {
+          selectedFiles[state].delete(filename);
+        }
+        updateDeleteButton(state);
+      }
+
+      function updateDeleteButton(state) {
+        const btn = document.getElementById(state + "DeleteBtn");
+        if (btn) {
+          const count = selectedFiles[state].size;
+          btn.textContent = `Delete Selected (${count})`;
+          btn.disabled = count === 0;
+        }
+      }
+
+      function deleteSelected(state) {
+        const count = selectedFiles[state].size;
+        if (count === 0) return;
+
+        showConfirm(
+          "Delete Multiple References",
+          `Are you sure you want to delete ${count} ${state} reference${count > 1 ? 's' : ''}? This cannot be undone.`,
+          () => {
+            const filenames = Array.from(selectedFiles[state]);
+            fetch('/api/references/batch-delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ state, filenames })
+            })
+              .then(r => r.json())
+              .then(data => {
+                if (data.success) {
+                  showToast(`Deleted ${data.deleted} ${state} references`, "success");
+                  loadReferences();
+                } else {
+                  showToast("Failed to delete references", "error");
+                }
+              })
+              .catch(err => showToast("Error deleting references", "error"));
+          }
+        );
       }
 
       function toggleRefCollapse(state) {
@@ -1399,6 +1769,104 @@
         input.value = "";
       }
 
+      // Crop history management
+      let cropHistory = [];
+      let currentHistoryIndex = -1;
+
+      function loadCropHistoryFromStorage() {
+        cropHistory = JSON.parse(localStorage.getItem('cropHistory') || '[]');
+        updateCropHistoryUI();
+      }
+
+      function saveCropHistoryToStorage() {
+        localStorage.setItem('cropHistory', JSON.stringify(cropHistory));
+      }
+
+      function updateCropHistoryUI() {
+        const emptyMsg = document.getElementById('historyEmpty');
+        const sliderContainer = document.getElementById('historySliderContainer');
+        const slider = document.getElementById('cropHistorySlider');
+        const indexLabel = document.getElementById('cropHistoryIndex');
+        const countLabel = document.getElementById('cropHistoryCount');
+        const deleteBtn = document.getElementById('historyDeleteBtn');
+
+        if (cropHistory.length === 0) {
+          emptyMsg.style.display = 'block';
+          sliderContainer.style.display = 'none';
+          deleteBtn.disabled = true;
+          return;
+        }
+
+        emptyMsg.style.display = 'none';
+        sliderContainer.style.display = 'flex';
+        slider.max = cropHistory.length - 1;
+        countLabel.textContent = cropHistory.length;
+        indexLabel.textContent = currentHistoryIndex + 1;
+        slider.value = currentHistoryIndex;
+        deleteBtn.disabled = false;
+      }
+
+      function loadCropHistory(idx) {
+        const index = parseInt(idx);
+        currentHistoryIndex = index;
+        const crop = cropHistory[index];
+        if (crop) {
+          currentCrop = [...crop];
+          updateBox();
+          document.getElementById('cropHistoryIndex').textContent = index + 1;
+        }
+      }
+
+      function saveToHistory() {
+        if (!currentCrop) {
+          showToast('No crop to save', 'warning');
+          return;
+        }
+
+        const normalized = [
+          Math.min(currentCrop[0], currentCrop[2]),
+          Math.min(currentCrop[1], currentCrop[3]),
+          Math.max(currentCrop[0], currentCrop[2]),
+          Math.max(currentCrop[1], currentCrop[3]),
+        ];
+
+        // Add new entry at the beginning
+        cropHistory.unshift(normalized);
+        currentHistoryIndex = 0;
+
+        // Limit history to 20 items
+        if (cropHistory.length > 20) {
+          cropHistory = cropHistory.slice(0, 20);
+        }
+
+        saveCropHistoryToStorage();
+        updateCropHistoryUI();
+        showToast('Crop saved to history', 'success');
+      }
+
+      function deleteHistoryItem() {
+        if (cropHistory.length === 0 || currentHistoryIndex < 0) {
+          return;
+        }
+
+        cropHistory.splice(currentHistoryIndex, 1);
+
+        if (cropHistory.length === 0) {
+          currentHistoryIndex = -1;
+        } else if (currentHistoryIndex >= cropHistory.length) {
+          currentHistoryIndex = cropHistory.length - 1;
+        }
+
+        saveCropHistoryToStorage();
+        updateCropHistoryUI();
+
+        if (currentHistoryIndex >= 0) {
+          loadCropHistory(currentHistoryIndex);
+        }
+
+        showToast('History item deleted', 'info');
+      }
+
       function saveCrop() {
         if (!currentCrop) {
           showToast("No crop selected", "warning");
@@ -1471,6 +1939,7 @@
       loadFrame();
       loadReferences();
       loadCurrentCrop();
+      loadCropHistoryFromStorage();
       setInterval(loadFrame, 2000);
     </script>
   </body>
