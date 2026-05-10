@@ -105,8 +105,42 @@ def main():
                 except Exception as e:
                     print(f"Failed to publish camera discovery: {e}")
 
+                # Button to capture locked reference
+                try:
+                    capture_locked_payload = {
+                        "name": f"{MQTT_DEVICE_NAME} Capture Locked",
+                        "command_topic": f"{MQTT_TOPIC}/command/capture_locked",
+                        "unique_id": f"{dev_id}_capture_locked",
+                        "availability_topic": availability_topic,
+                        "device": device,
+                        "icon": "mdi:camera"
+                    }
+                    capture_locked_topic = f"{MQTT_DISCOVERY_PREFIX}/button/{dev_id}_capture_locked/config"
+                    client.publish(capture_locked_topic, json.dumps(capture_locked_payload), qos=1, retain=True)
+                except Exception as e:
+                    print(f"Failed to publish capture_locked button: {e}")
+
+                # Button to capture unlocked reference
+                try:
+                    capture_unlocked_payload = {
+                        "name": f"{MQTT_DEVICE_NAME} Capture Unlocked",
+                        "command_topic": f"{MQTT_TOPIC}/command/capture_unlocked",
+                        "unique_id": f"{dev_id}_capture_unlocked",
+                        "availability_topic": availability_topic,
+                        "device": device,
+                        "icon": "mdi:camera"
+                    }
+                    capture_unlocked_topic = f"{MQTT_DISCOVERY_PREFIX}/button/{dev_id}_capture_unlocked/config"
+                    client.publish(capture_unlocked_topic, json.dumps(capture_unlocked_payload), qos=1, retain=True)
+                except Exception as e:
+                    print(f"Failed to publish capture_unlocked button: {e}")
+
                 # Publish retained availability online
                 client.publish(availability_topic, "online", qos=1, retain=True)
+
+                # Subscribe to command topics
+                client.subscribe(f"{MQTT_TOPIC}/command/capture_locked", qos=1)
+                client.subscribe(f"{MQTT_TOPIC}/command/capture_unlocked", qos=1)
             except Exception as e:
                 print(f"Failed to publish Home Assistant discovery: {e}")
         else:
@@ -123,6 +157,29 @@ def main():
 
     mqtt_client.on_connect = on_connect
     mqtt_client.on_disconnect = on_disconnect
+
+    def on_message(client, userdata, msg):
+        topic = msg.topic
+        payload = msg.payload.decode('utf-8') if msg.payload else ""
+        print(f"MQTT message: {topic} = {payload}")
+        
+        if topic == f"{MQTT_TOPIC}/command/capture_locked":
+            filepath = detector.capture_reference("locked")
+            if filepath:
+                client.publish(f"{MQTT_TOPIC}/command/result", f"Captured locked: {filepath}", qos=1)
+                print(f"Captured locked reference: {filepath}")
+            else:
+                client.publish(f"{MQTT_TOPIC}/command/result", "Failed to capture locked", qos=1)
+        
+        elif topic == f"{MQTT_TOPIC}/command/capture_unlocked":
+            filepath = detector.capture_reference("unlocked")
+            if filepath:
+                client.publish(f"{MQTT_TOPIC}/command/result", f"Captured unlocked: {filepath}", qos=1)
+                print(f"Captured unlocked reference: {filepath}")
+            else:
+                client.publish(f"{MQTT_TOPIC}/command/result", "Failed to capture unlocked", qos=1)
+
+    mqtt_client.on_message = on_message
 
     # Connect with retry
     connected = False
