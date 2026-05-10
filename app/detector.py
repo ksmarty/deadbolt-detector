@@ -46,6 +46,7 @@ class DeadboltDetector:
         self.crop = self._load_crop()
         self.ref_images = {'locked': [], 'unlocked': []}
         self.last_full_frame = None
+        self.last_cropped_frame = None
 
         ensure_dirs()
         self._load_all_references()
@@ -124,7 +125,9 @@ class DeadboltDetector:
                 x1, x2 = max(0, min(x1, w)), max(0, min(x2, w))
                 y1, y2 = max(0, min(y1, h)), max(0, min(y2, h))
                 if x2 > x1 and y2 > y1:
-                    frame = frame[y1:y2, x1:x2]
+                    cropped = frame[y1:y2, x1:x2]
+                    self.last_cropped_frame = cropped.copy()
+                    frame = cropped
 
             return frame
 

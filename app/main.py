@@ -105,6 +105,20 @@ def main():
                 except Exception as e:
                     print(f"Failed to publish camera discovery: {e}")
 
+                # Cropped camera discovery
+                try:
+                    camera_cropped_payload = {
+                        "name": f"{MQTT_DEVICE_NAME} Camera Cropped",
+                        "topic": f"{MQTT_TOPIC}/camera_cropped",
+                        "unique_id": f"{dev_id}_camera_cropped",
+                        "availability_topic": availability_topic,
+                        "device": device
+                    }
+                    camera_cropped_topic = f"{MQTT_DISCOVERY_PREFIX}/camera/{dev_id}_cropped/config"
+                    client.publish(camera_cropped_topic, json.dumps(camera_cropped_payload), qos=1, retain=True)
+                except Exception as e:
+                    print(f"Failed to publish cropped camera discovery: {e}")
+
                 # Button to capture locked reference
                 try:
                     capture_locked_payload = {
@@ -237,6 +251,14 @@ def main():
                             mqtt_client.publish(f"{MQTT_TOPIC}/camera", imgbuf.tobytes(), qos=0, retain=False)
                     except Exception as e:
                         print(f"Failed to publish camera image: {e}")
+
+                    # Publish cropped camera image
+                    try:
+                        if detector.last_cropped_frame is not None:
+                            _, imgbuf = cv2.imencode('.jpg', detector.last_cropped_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                            mqtt_client.publish(f"{MQTT_TOPIC}/camera_cropped", imgbuf.tobytes(), qos=0, retain=False)
+                    except Exception as e:
+                        print(f"Failed to publish cropped camera image: {e}")
                 time.sleep(REFRESH_RATE)
             except Exception as e:
                 print(f"Detection error: {e}")
