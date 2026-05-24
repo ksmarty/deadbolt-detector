@@ -4,6 +4,7 @@ import sys
 import time
 import threading
 import json
+import numpy as np
 import paho.mqtt.client as mqtt
 from detector import DeadboltDetector, compute_published_state
 import cv2
@@ -20,6 +21,19 @@ REFRESH_RATE = int(os.getenv('REFRESH_RATE', '5'))
 MQTT_DISCOVERY_PREFIX = os.getenv('MQTT_DISCOVERY_PREFIX', 'homeassistant')
 MQTT_DEVICE_NAME = os.getenv('MQTT_DEVICE_NAME', 'Deadbolt Detector')
 MQTT_DEVICE_ID = os.getenv('MQTT_DEVICE_ID', '')
+
+def create_placeholder_image(width=640, height=480):
+    img = np.full((height, width, 3), (64, 64, 64), dtype=np.uint8)
+    text = "Camera Offline"
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 1.0
+    thickness = 2
+    text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
+    text_x = (width - text_size[0]) // 2
+    text_y = (height + text_size[1]) // 2
+    cv2.putText(img, text, (text_x, text_y), font, font_scale, (255, 255, 255), thickness)
+    _, buf = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 50])
+    return buf.tobytes()
 
 def main():
     print("=" * 50)
@@ -221,9 +235,32 @@ def main():
     # Start detection loop in background thread
     def detection_loop():
         print(f"Detection loop started ({REFRESH_RATE}s interval)")
+        camera_was_online = True
+        availability_topic = f"{MQTT_TOPIC}/availability"
         while True:
             try:
                 state, confidence = detector.detect()
+
+                if mqtt_client:
+                    if not detector.camera_online:
+                        if camera_was_online:
+                            print("Camera offline - marking entities unavailable")
+                            mqtt_client.publish(availability_topic, "offline", qos=1, retain=True)
+                            try:
+                                placeholder = create_placeholder_image()
+                                mqtt_client.publish(f"{MQTT_TOPIC}/camera", placeholder, qos=0, retain=False)
+                                mqtt_client.publish(f"{MQTT_TOPIC}/camera_cropped", placeholder, qos=0, retain=False)
+                            except Exception as e:
+                                print(f"Failed to publish placeholder image: {e}")
+                            camera_was_online = False
+                        time.sleep(REFRESH_RATE)
+                        continue
+
+                    if not camera_was_online:
+                        print("Camera back online - marking entities available")
+                        mqtt_client.publish(availability_topic, "online", qos=1, retain=True)
+                        camera_was_online = True
+
                 if state and mqtt_client and state != "unconfigured":
                     # Compute published state honoring confidence threshold
                     publish_state = compute_published_state(state, confidence)

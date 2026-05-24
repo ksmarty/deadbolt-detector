@@ -47,6 +47,7 @@ class DeadboltDetector:
         self.ref_images = {'locked': [], 'unlocked': []}
         self.last_full_frame = None
         self.last_cropped_frame = None
+        self.camera_online = True
 
         ensure_dirs()
         self._load_all_references()
@@ -115,8 +116,10 @@ class DeadboltDetector:
 
             if frame is None:
                 print("Failed to decode JPEG from camera")
+                self.camera_online = False
                 return None
 
+            self.camera_online = True
             self.last_full_frame = frame.copy()
 
             if not full and self.crop:
@@ -133,6 +136,7 @@ class DeadboltDetector:
 
         except Exception as e:
             print(f"Camera error: {e}")
+            self.camera_online = False
             return None
 
     def compare(self, frame, reference):
