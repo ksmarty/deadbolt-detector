@@ -5,9 +5,11 @@ Lightweight deadbolt lock-state detector that compares camera snapshots to refer
 Features
 - Multi-reference image support for `locked` and `unlocked` states
 - Publishes JSON state and confidence to MQTT (retained)
-- Publishes camera JPEG frames to MQTT for Home Assistant camera display
-- Home Assistant auto-discovery (sensor for state, sensor for confidence, camera, availability)
+- Publishes full and cropped camera JPEG frames to MQTT for Home Assistant camera display
+- Home Assistant auto-discovery (sensor for state, sensor for confidence, camera, cropped camera, availability, capture buttons)
 - Low-confidence mapping: detections below `MIN_CONFIDENCE` map to `unknown`
+- Image denoising to reduce frame-to-frame confidence variance
+- Camera health monitoring: marks entities unavailable and publishes a placeholder image when the camera is unreachable
 
 Quick start (Docker Compose)
 
@@ -52,8 +54,10 @@ How it publishes
 }
 ```
 
-- Camera JPEG frames are published raw to `{MQTT_TOPIC}/camera` (non-retained).
-- Availability is published retained to `{MQTT_TOPIC}/availability` (`online` / `offline`).
+- Full camera JPEG frames are published raw to `{MQTT_TOPIC}/camera` (non-retained).
+- Cropped camera JPEG frames are published raw to `{MQTT_TOPIC}/camera_cropped` (non-retained). The crop region is configured via the WebUI.
+- Availability is published retained to `{MQTT_TOPIC}/availability` (`online` / `offline`). When the camera is unreachable, availability flips to `offline` and both camera topics receive a "Camera Offline" placeholder image. It flips back to `online` when the camera recovers.
+- Capture button commands are published to `{MQTT_TOPIC}/command/capture_locked` and `{MQTT_TOPIC}/command/capture_unlocked`. The result is published to `{MQTT_TOPIC}/command/result`.
 - Home Assistant discovery messages are published retained under `{MQTT_DISCOVERY_PREFIX}` so HA can auto-create entities.
 
 Environment variables
@@ -73,12 +77,18 @@ Below are all environment variables used by the application and their defaults (
 | MQTT_DEVICE_NAME | `Deadbolt Detector` | Friendly device name used in discovery payloads |
 | MQTT_DEVICE_ID | `` | Optional device identifier; defaults to a sanitized `MQTT_TOPIC` if empty |
 | CONF_ALPHA | `50.0` | Alpha parameter used in the sigmoid confidence formula (tuning) |
+| CONF_POWER | `0.75` | Power boost applied to the chosen similarity score in confidence formula |
+| ALIGN_SEARCH_PIXELS | `10` | Search range for NCC alignment (handles minor camera position shifts); set to `0` to disable |
+| DENOISE_STRENGTH | `0` | OpenCV fastNlMeansDenoising strength applied to frames and references (0=off, 10=mild, higher=stronger) |
 | DETECTOR_DEBUG | (not set) | Set to `1` to enable detector debug output |
 | MIN_CONFIDENCE | `0.7` | Minimum confidence [0:1]. Detections below this are mapped to `unknown` |
 
 Notes for Home Assistant
-- The app publishes a plain `sensor` for the lock state (text) and a separate `sensor` for confidence (percentage), plus an MQTT camera discovery entry and an availability topic. The lock sensor uses `value_json.state` to read the textual state.
+- The app publishes a plain `sensor` for the lock state (text) and a separate `sensor` for confidence (percentage), plus two MQTT cameras (full frame and cropped), an availability topic, and two button entities for capturing references. The lock sensor uses `value_json.state` to read the textual state.
+- The cropped camera focuses on the region of interest (configured via the WebUI at `/crop`). It shows the same area used for detection.
+- Two buttons (`Capture Locked` and `Capture Unlocked`) are available to capture reference images from Home Assistant.
 - Published states are Title Case (e.g., `Locked`, `Unlocked`, `Unknown`).
+- If the camera becomes unreachable, all entities are marked unavailable via the availability topic and a "Camera Offline" placeholder is published to both camera topics. Entities return to normal automatically when the camera recovers.
 - If you see stale entities in HA after changing entity types, clear the retained discovery topics (or wait until the app reconnects and republishes discovery). To clear a retained topic:
 
 ```bash
@@ -96,6 +106,7 @@ Troubleshooting
 docker run --rm eclipse-mosquitto mosquitto_sub -h <broker> -t 'home/deadbolt/state' -v
 docker run --rm eclipse-mosquitto mosquitto_sub -h <broker> -t 'home/deadbolt/availability' -v
 docker run --rm eclipse-mosquitto mosquitto_sub -h <broker> -t 'home/deadbolt/camera' -v
+docker run --rm eclipse-mosquitto mosquitto_sub -h <broker> -t 'home/deadbolt/camera_cropped' -v
 docker run --rm eclipse-mosquitto mosquitto_sub -h <broker> -t 'homeassistant/#' -v
 ```
 

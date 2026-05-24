@@ -82,6 +82,12 @@ class DeadboltDetector:
             count = len(self.ref_images[state])
             print(f"{state}: {count} reference(s) loaded")
 
+    def _denoise(self, img):
+        h = int(os.getenv('DENOISE_STRENGTH', '0'))
+        if h > 0:
+            return cv2.fastNlMeansDenoising(img, h=h)
+        return img
+
     def _load_and_crop(self, path):
         """Load image and apply current crop."""
         if not os.path.exists(path):
@@ -97,7 +103,7 @@ class DeadboltDetector:
             y1, y2 = max(0, min(y1, h)), max(0, min(y2, h))
             if x2 > x1 and y2 > y1:
                 img = img[y1:y2, x1:x2]
-        return img
+        return self._denoise(img)
 
     def has_references(self):
         """Check if we have at least one reference for each state."""
@@ -150,6 +156,7 @@ class DeadboltDetector:
         if gray.shape != reference.shape:
             gray = cv2.resize(gray, (reference.shape[1], reference.shape[0]))
 
+        gray = self._denoise(gray)
         gray = self._normalize_lighting(gray, reference)
         reference = self._normalize_lighting(reference, reference)
 

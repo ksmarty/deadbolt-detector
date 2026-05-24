@@ -10,6 +10,7 @@
 - `DETECTOR_DEBUG=1`: Enable debug output
 - `MIN_CONFIDENCE=0.7`: Threshold below which state becomes "unknown"
 - `ALIGN_SEARCH_PIXELS=10`: Search range for NCC alignment (handles camera shifts)
+- `DENOISE_STRENGTH=0`: OpenCV fastNlMeansDenoising strength (0=off, 10=mild, higher=stronger)
 
 ## Architecture
 - Entry point: `app/main.py`
