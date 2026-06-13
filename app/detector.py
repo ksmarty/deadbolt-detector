@@ -49,6 +49,9 @@ class DeadboltDetector:
         self.last_cropped_frame = None
         self.camera_online = True
 
+        clahe_clip = float(os.getenv('CLAHE_CLIP_LIMIT', '2.0'))
+        self.clahe = cv2.createCLAHE(clipLimit=clahe_clip, tileGridSize=(8, 8)) if clahe_clip > 0 else None
+
         ensure_dirs()
         self._load_all_references()
 
@@ -103,7 +106,10 @@ class DeadboltDetector:
             y1, y2 = max(0, min(y1, h)), max(0, min(y2, h))
             if x2 > x1 and y2 > y1:
                 img = img[y1:y2, x1:x2]
-        return self._denoise(img)
+        img = self._denoise(img)
+        if self.clahe is not None:
+            img = self.clahe.apply(img)
+        return img
 
     def has_references(self):
         """Check if we have at least one reference for each state."""
@@ -157,11 +163,13 @@ class DeadboltDetector:
             gray = cv2.resize(gray, (reference.shape[1], reference.shape[0]))
 
         gray = self._denoise(gray)
+        if self.clahe is not None:
+            gray = self.clahe.apply(gray)
         gray = self._normalize_lighting(gray, reference)
         reference = self._normalize_lighting(reference, reference)
 
         ref_h, ref_w = reference.shape
-        search_range = int(os.getenv('ALIGN_SEARCH_PIXELS', '10'))
+        search_range = int(os.getenv('ALIGN_SEARCH_PIXELS', '15'))
 
         if search_range > 0 and gray.shape[0] > ref_h + 2*search_range and gray.shape[1] > ref_w + 2*search_range:
             best_score = -1

@@ -9,6 +9,8 @@ Features
 - Home Assistant auto-discovery (sensor for state, sensor for confidence, camera, cropped camera, availability, capture buttons)
 - Low-confidence mapping: detections below `MIN_CONFIDENCE` map to `unknown`
 - Image denoising to reduce frame-to-frame confidence variance
+- CLAHE local contrast enhancement for robustness to lighting drift
+- Configurable NCC alignment window to handle small camera bumps and door position variation
 - Camera health monitoring: marks entities unavailable and publishes a placeholder image when the camera is unreachable
 
 Quick start (Docker Compose)
@@ -78,8 +80,9 @@ Below are all environment variables used by the application and their defaults (
 | MQTT_DEVICE_ID | `` | Optional device identifier; defaults to a sanitized `MQTT_TOPIC` if empty |
 | CONF_ALPHA | `50.0` | Alpha parameter used in the sigmoid confidence formula (tuning) |
 | CONF_POWER | `0.75` | Power boost applied to the chosen similarity score in confidence formula |
-| ALIGN_SEARCH_PIXELS | `10` | Search range for NCC alignment (handles minor camera position shifts); set to `0` to disable |
+| ALIGN_SEARCH_PIXELS | `15` | Search range for NCC alignment (handles slight camera/door position shifts; higher=more tolerance but slower) |
 | DENOISE_STRENGTH | `0` | OpenCV fastNlMeansDenoising strength applied to frames and references (0=off, 10=mild, higher=stronger) |
+| CLAHE_CLIP_LIMIT | `2.0` | CLAHE local contrast enhancement clip limit (0=off, ~2=moderate, higher=stronger local contrast) |
 | DETECTOR_DEBUG | (not set) | Set to `1` to enable detector debug output |
 | MIN_CONFIDENCE | `0.7` | Minimum confidence [0:1]. Detections below this are mapped to `unknown` |
 
