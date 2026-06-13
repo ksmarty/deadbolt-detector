@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import cv2
 import numpy as np
 import urllib3
@@ -49,6 +50,7 @@ class DeadboltDetector:
         self.last_cropped_frame = None
         self.camera_online = True
 
+        self.denoise_strength = int(os.getenv('DENOISE_STRENGTH', '0'))
         clahe_clip = float(os.getenv('CLAHE_CLIP_LIMIT', '2.0'))
         self.clahe = cv2.createCLAHE(clipLimit=clahe_clip, tileGridSize=(8, 8)) if clahe_clip > 0 else None
 
@@ -86,9 +88,8 @@ class DeadboltDetector:
             print(f"{state}: {count} reference(s) loaded")
 
     def _denoise(self, img):
-        h = int(os.getenv('DENOISE_STRENGTH', '0'))
-        if h > 0:
-            return cv2.fastNlMeansDenoising(img, h=h)
+        if self.denoise_strength > 0:
+            return cv2.fastNlMeansDenoising(img, h=self.denoise_strength)
         return img
 
     def _load_and_crop(self, path):
@@ -118,7 +119,7 @@ class DeadboltDetector:
     def get_frame(self, full=False):
         """Fetch frame from camera."""
         try:
-            response = self.session.get(self.camera_url, timeout=30)
+            response = self.session.get(self.camera_url, timeout=max(10, self.refresh_rate))
             response.raise_for_status()
 
             frame = cv2.imdecode(
@@ -166,7 +167,6 @@ class DeadboltDetector:
         if self.clahe is not None:
             gray = self.clahe.apply(gray)
         gray = self._normalize_lighting(gray, reference)
-        reference = self._normalize_lighting(reference, reference)
 
         ref_h, ref_w = reference.shape
         search_range = int(os.getenv('ALIGN_SEARCH_PIXELS', '15'))
@@ -306,7 +306,6 @@ class DeadboltDetector:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if len(frame.shape) == 3 else frame
 
         # Generate filename with timestamp
-        import time
         timestamp = int(time.time())
         filename = f"{state}_{timestamp}.jpg"
         filepath = os.path.join(REFS_DIR, state, filename)

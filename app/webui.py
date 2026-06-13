@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import cv2
 import numpy as np
 import base64
@@ -162,7 +163,6 @@ def upload_reference():
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # Save with timestamp
-        import time
         timestamp = int(time.time())
         filename = f"{state}_{timestamp}.jpg"
         filepath = os.path.join(REFS_DIR, state, filename)
@@ -203,7 +203,6 @@ def batch_delete_references():
 @app.route('/api/config')
 def get_config():
     """Return current configuration info."""
-    import os
     config = {
         'camera_url': os.environ.get('CAMERA_URL', 'Not set'),
         'mqtt_host': os.environ.get('MQTT_HOST', 'Not set'),
@@ -211,7 +210,7 @@ def get_config():
         'mqtt_user': os.environ.get('MQTT_USER', 'Not set'),
         'detector_debug': os.environ.get('DETECTOR_DEBUG', '0'),
         'min_confidence': os.environ.get('MIN_CONFIDENCE', '0.7'),
-        'align_search_pixels': os.environ.get('ALIGN_SEARCH_PIXELS', '10'),
+        'align_search_pixels': os.environ.get('ALIGN_SEARCH_PIXELS', '15'),
         'conf_alpha': os.environ.get('CONF_ALPHA', '50.0'),
         'conf_power': os.environ.get('CONF_POWER', '0.75'),
     }
