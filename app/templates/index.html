@@ -605,6 +605,25 @@
         margin-top: 10px;
       }
 
+      /* Score breakdown behind the last test detection, so a surprising
+         confidence can be explained without reading the logs. */
+      .detect-detail {
+        margin-top: 9px;
+        font-family: ui-monospace, monospace;
+        font-size: 0.72rem;
+        line-height: 1.6;
+        color: var(--text-dim);
+      }
+
+      .detect-detail b {
+        color: var(--text-muted);
+        font-weight: 600;
+      }
+
+      .detect-detail.is-warning {
+        color: #fde68a;
+      }
+
       /* ----------------------------------------------------------- crop info */
       .crop-readout {
         display: flex;
@@ -1328,6 +1347,7 @@
         <section class="panel">
           <h2 class="panel__title">Detection status</h2>
           <div id="detectionStatus" class="status unknown">Loading…</div>
+          <p class="detect-detail is-hidden" id="detectDetail"></p>
           <button class="btn btn--block" id="btnTest" disabled>Test detection</button>
         </section>
 
@@ -2181,6 +2201,7 @@
       function testDetection() {
         statusEl.textContent = "Testing…";
         statusEl.className = "status unknown";
+        document.getElementById("detectDetail").classList.add("is-hidden");
 
         fetch("/api/detect")
           .then((r) => r.json())
@@ -2195,12 +2216,34 @@
             statusEl.className = `status ${
               data.state === "unconfigured" ? "unconfigured" : data.state
             }`;
+            renderDetectDetail(data.scores);
           })
           .catch(() => {
             statusEl.textContent = "Detection failed";
             statusEl.className = "status unconfigured";
             showToast("Detection error", "error");
           });
+      }
+
+      // Shows why the confidence came out where it did: the score of each
+      // reference set and the margin between them. A tiny margin is what pulls
+      // confidence towards 50%.
+      function renderDetectDetail(scores) {
+        const el = document.getElementById("detectDetail");
+        if (!scores) {
+          el.classList.add("is-hidden");
+          return;
+        }
+
+        const margin = scores.margin;
+        const tight = Math.abs(margin) < 0.05;
+        el.classList.toggle("is-warning", tight);
+        el.innerHTML =
+          `locked <b>${scores.locked_score.toFixed(3)}</b> · ` +
+          `unlocked <b>${scores.unlocked_score.toFixed(3)}</b><br>` +
+          `margin <b>${margin >= 0 ? "+" : ""}${margin.toFixed(3)}</b>` +
+          (tight ? " — the two references score almost the same" : "");
+        el.classList.remove("is-hidden");
       }
 
       /* ------------------------------------------------------ crop history */      function loadCropHistoryFromStorage() {

@@ -309,7 +309,8 @@ def test_detect():
     return jsonify({
         'state': publish_state,
         'confidence': confidence,
-        'confidence_pct': f"{confidence_pct}%"
+        'confidence_pct': f"{confidence_pct}%",
+        'scores': detector.last_detection,
     })
 
 

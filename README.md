@@ -99,6 +99,32 @@ button. Overrides take effect immediately, are written to
 unticking *Override* to fall back to the env var. Env values that are empty or
 unparseable fall back to the documented default instead of crashing.
 
+### Tuning the confidence
+
+The WebUI **Test detection** button reports the score of each reference set and
+the margin between them, e.g.
+
+```
+locked 0.997 · unlocked 0.802
+margin +0.195
+```
+
+Confidence is `chosen^CONF_POWER × sigmoid(CONF_ALPHA × margin)`, so two things
+move it:
+
+- **How well the winning reference matches at all** (`chosen`). A crop that
+  mostly covers flat wall will match poorly no matter which state the door is in.
+  Aim for `chosen` above ~0.8; tighten the crop onto the bolt if it is lower.
+- **How much better the winner is than the loser** (the margin). When the two
+  references score almost the same the margin goes to zero, the sigmoid returns
+  0.5 and confidence halves — the UI flags this in amber. That means the crop
+  does not contain anything that distinguishes locked from unlocked (or the two
+  reference sets are the same picture), not that the maths is wrong.
+
+If detections land just under `MIN_CONFIDENCE`, raise `CONF_ALPHA` (makes the
+margin matter more) or lower `MIN_CONFIDENCE`, both live from the config modal.
+Setting `DETECTOR_DEBUG=1` prints the same numbers to the log on every cycle.
+
 Notes for Home Assistant
 - The app publishes a plain `sensor` for the lock state (text) and a separate `sensor` for confidence (percentage), plus two MQTT cameras (full frame and cropped), an availability topic, and two button entities for capturing references. The lock sensor uses `value_json.state` to read the textual state.
 - The cropped camera focuses on the region of interest (configured in the WebUI crop editor). It shows the same area used for detection.
@@ -138,6 +164,7 @@ Known limitations
 - The reference is located with normalized cross-correlation, so its score is on a different scale than the plain pixel-difference fallback used when `ALIGN_SEARCH_PIXELS=0`. If you change that setting, re-check `MIN_CONFIDENCE`.
 - Changing the crop re-crops existing references, which requires them to have been stored uncropped. References captured before that change are used as-is and will not follow crop edits.
 - Reference images are matched against the raw frame; if the camera resolution changes, references are resized to match and scores drop until re-captured.
+- The crop must contain something that actually differs between locked and unlocked. If both reference sets look the same inside the crop, confidence sits at 50% and the state is reported as `unknown` — the UI says so in amber.
 
 License & Contributing
 - PRs welcome. Please open issues for bugs or feature requests.

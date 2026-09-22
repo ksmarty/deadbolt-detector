@@ -130,6 +130,7 @@ class DeadboltDetector:
         self.last_full_frame = None
         self.last_cropped_frame = None
         self.camera_online = True
+        self.last_detection = None
 
         ensure_dirs()
         self._load_all_references()
@@ -340,8 +341,15 @@ class DeadboltDetector:
         """
         gray = frame if frame.ndim == 2 else cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        if gray.shape != reference.shape:
-            gray = cv2.resize(gray, (reference.shape[1], reference.shape[0]))
+        ref_h, ref_w = reference.shape
+
+        # matchTemplate needs the frame to be at least as large as the reference.
+        # Only scale when it is *smaller* (a reference uploaded at a different
+        # resolution). Resizing whenever the shapes differ would squash the
+        # alignment window back down to the reference size, which silently
+        # defeats the whole search and tanks every score.
+        if gray.shape[0] < ref_h or gray.shape[1] < ref_w:
+            gray = cv2.resize(gray, (ref_w, ref_h))
 
         gray = self._denoise(gray)
         if self.clahe is not None:
@@ -429,6 +437,16 @@ class DeadboltDetector:
                 f"detect: locked={best['locked']:.4f}, unlocked={best['unlocked']:.4f}, "
                 f"chosen={chosen:.4f}, other={other:.4f}, p={p:.4f}, conf={confidence:.4f}"
             )
+
+        # Kept for the WebUI so the score breakdown behind a confidence is visible.
+        self.last_detection = {
+            'locked_score': round(best['locked'], 4),
+            'unlocked_score': round(best['unlocked'], 4),
+            'chosen': round(chosen, 4),
+            'other': round(other, 4),
+            'margin': round(delta, 4),
+            'margin_probability': round(p, 4),
+        }
 
         return state, confidence
 
