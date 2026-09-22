@@ -1,26 +1,103 @@
-import os
+import glob
 import json
+import math
+import os
+import ssl
 import time
+
 import cv2
 import numpy as np
-import urllib3
-import ssl
 import requests
-import glob
-import math
+import urllib3
 from requests.adapters import HTTPAdapter
-from urllib3.util.ssl_ import create_urllib3_context
 from urllib3.exceptions import InsecureRequestWarning
 
 urllib3.disable_warnings(InsecureRequestWarning)
 
-CONFIG_PATH = "/app/config/crop.json"
-REFS_DIR = "/app/config/references"
+# Config directory holds the crop, the persisted setting overrides and the
+# reference images. Defaults to the path used inside the container, but can be
+# pointed somewhere writable when running locally.
+CONFIG_DIR = os.getenv("CONFIG_DIR", "/app/config")
+CONFIG_PATH = os.path.join(CONFIG_DIR, "crop.json")
+OVERRIDES_PATH = os.path.join(CONFIG_DIR, "overrides.json")
+REFS_DIR = os.path.join(CONFIG_DIR, "references")
+
 
 def ensure_dirs():
-    os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+    os.makedirs(CONFIG_DIR, exist_ok=True)
     os.makedirs(os.path.join(REFS_DIR, "locked"), exist_ok=True)
     os.makedirs(os.path.join(REFS_DIR, "unlocked"), exist_ok=True)
+
+
+def _to_bool(value):
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
+# Settings that can be tuned at runtime (from the WebUI config modal) as well as
+# from the environment. Maps setting name -> (env var, caster, default).
+TUNABLES = {
+    "min_confidence": ("MIN_CONFIDENCE", float, 0.7),
+    "conf_alpha": ("CONF_ALPHA", float, 50.0),
+    "conf_power": ("CONF_POWER", float, 0.75),
+    "align_search_pixels": ("ALIGN_SEARCH_PIXELS", int, 15),
+    "denoise_strength": ("DENOISE_STRENGTH", int, 0),
+    "clahe_clip_limit": ("CLAHE_CLIP_LIMIT", float, 2.0),
+    "detector_debug": ("DETECTOR_DEBUG", _to_bool, False),
+}
+
+
+def coerce_setting(name, value):
+    """Parse `value` for `name`, returning None if it is empty or unparseable.
+
+    Empty values are a common way for a docker-compose `${VAR:-}`
+    interpolation to reach us, and those must not raise.
+    """
+    if value is None or str(value).strip() == "":
+        return None
+    try:
+        return TUNABLES[name][1](value)
+    except (TypeError, ValueError):
+        return None
+
+
+def env_setting(name):
+    """Value of `name` from the environment, falling back to its default."""
+    env_var, _, default = TUNABLES[name]
+    value = coerce_setting(name, os.getenv(env_var))
+    return default if value is None else value
+
+
+def resolve_settings(overrides=None):
+    """Merge environment defaults with runtime overrides.
+
+    An override that cannot be parsed is ignored, leaving the environment value
+    (not the hard-coded default) in effect.
+    """
+    settings = {name: env_setting(name) for name in TUNABLES}
+    for name, value in (overrides or {}).items():
+        parsed = coerce_setting(name, value)
+        if parsed is not None:
+            settings[name] = parsed
+    return settings
+
+
+def load_overrides():
+    """Read persisted setting overrides from disk (best effort)."""
+    try:
+        with open(OVERRIDES_PATH) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {k: v for k, v in data.items() if k in TUNABLES}
+
+
+def save_overrides(overrides):
+    ensure_dirs()
+    with open(OVERRIDES_PATH, "w") as f:
+        json.dump(overrides, f, indent=2, sort_keys=True)
+
 
 class WeakSSLAdapter(HTTPAdapter):
     """Custom adapter that allows weak/self-signed SSL certificates."""
@@ -33,9 +110,9 @@ class WeakSSLAdapter(HTTPAdapter):
         kwargs['ssl_context'] = ctx
         return super().init_poolmanager(*args, **kwargs)
 
+
 class DeadboltDetector:
-    def __init__(self, mqtt_client=None, refresh_rate=5):
-        self.mqtt = mqtt_client
+    def __init__(self, refresh_rate=5):
         self.refresh_rate = refresh_rate
         self.camera_url = os.getenv('CAMERA_URL')
 
@@ -44,27 +121,76 @@ class DeadboltDetector:
         self.session.mount('http://', HTTPAdapter())
         self.session.verify = False
 
+        self.overrides = load_overrides()
+        self.settings = resolve_settings(self.overrides)
+        self.clahe = self._build_clahe()
+
         self.crop = self._load_crop()
         self.ref_images = {'locked': [], 'unlocked': []}
         self.last_full_frame = None
         self.last_cropped_frame = None
         self.camera_online = True
 
-        self.denoise_strength = int(os.getenv('DENOISE_STRENGTH', '0'))
-        clahe_clip = float(os.getenv('CLAHE_CLIP_LIMIT', '2.0'))
-        self.clahe = cv2.createCLAHE(clipLimit=clahe_clip, tileGridSize=(8, 8)) if clahe_clip > 0 else None
-
         ensure_dirs()
         self._load_all_references()
 
+    # ------------------------------------------------------------------ config
+
+    def _build_clahe(self):
+        clip = self.settings['clahe_clip_limit']
+        return cv2.createCLAHE(clipLimit=clip, tileGridSize=(8, 8)) if clip > 0 else None
+
+    def set_overrides(self, overrides):
+        """Replace the runtime overrides, persist them and re-apply them.
+
+        Returns the resulting effective settings. Raises ValueError if a value
+        is present but cannot be parsed as that setting's type.
+        """
+        clean = {}
+        invalid = []
+        for name, value in (overrides or {}).items():
+            if name not in TUNABLES:
+                continue
+            if value is None or str(value).strip() == "":
+                continue
+            if coerce_setting(name, value) is None:
+                invalid.append(name)
+            else:
+                clean[name] = str(value).strip()
+
+        if invalid:
+            raise ValueError(f"Invalid value for: {', '.join(sorted(invalid))}")
+
+        previous = self.settings
+        self.overrides = clean
+        self.settings = resolve_settings(clean)
+        save_overrides(clean)
+
+        preprocessing_changed = (
+            self.settings['clahe_clip_limit'] != previous['clahe_clip_limit']
+            or self.settings['denoise_strength'] != previous['denoise_strength']
+        )
+        if self.settings['clahe_clip_limit'] != previous['clahe_clip_limit']:
+            self.clahe = self._build_clahe()
+        if preprocessing_changed:
+            # References are preprocessed when they are loaded, so they have to
+            # be reloaded for the new preprocessing to take effect.
+            self._load_all_references()
+
+        return self.settings
+
     def _load_crop(self):
         if os.path.exists(CONFIG_PATH):
-            with open(CONFIG_PATH, 'r') as f:
-                data = json.load(f)
-                coords = data.get('coords', [])
-                if len(coords) == 4:
-                    print(f"Loaded crop: {coords}")
-                    return tuple(coords)
+            try:
+                with open(CONFIG_PATH, 'r') as f:
+                    coords = json.load(f).get('coords', [])
+                coords = [int(c) for c in coords]
+            except (OSError, ValueError, TypeError) as e:
+                print(f"Could not read crop config: {e}")
+                return None
+            if len(coords) == 4:
+                print(f"Loaded crop: {coords}")
+                return tuple(coords)
         return None
 
     def _save_crop(self):
@@ -73,6 +199,31 @@ class DeadboltDetector:
         with open(CONFIG_PATH, 'w') as f:
             json.dump(data, f)
         print(f"Saved crop: {self.crop}")
+
+    # ------------------------------------------------------------------ images
+
+    def _crop_fits(self, shape):
+        """True if the configured crop rect lies fully inside an image."""
+        if not self.crop:
+            return False
+        x1, y1, x2, y2 = self.crop
+        h, w = shape[:2]
+        return 0 <= x1 < x2 <= w and 0 <= y1 < y2 <= h
+
+    def apply_crop(self, img, margin=0):
+        """Crop `img` to the configured region, widened by `margin` pixels."""
+        if not self.crop:
+            return img
+
+        x1, y1, x2, y2 = self.crop
+        h, w = img.shape[:2]
+        x1 = max(0, min(x1, w) - margin)
+        y1 = max(0, min(y1, h) - margin)
+        x2 = max(0, min(x2, w) + margin)
+        y2 = max(0, min(y2, h) + margin)
+        if x2 > x1 and y2 > y1:
+            return img[y1:y2, x1:x2]
+        return img
 
     def _load_all_references(self):
         """Load all reference images from directories."""
@@ -88,25 +239,27 @@ class DeadboltDetector:
             print(f"{state}: {count} reference(s) loaded")
 
     def _denoise(self, img):
-        if self.denoise_strength > 0:
-            return cv2.fastNlMeansDenoising(img, h=self.denoise_strength)
+        strength = int(self.settings['denoise_strength'])
+        if strength > 0:
+            return cv2.fastNlMeansDenoising(img, h=strength)
         return img
 
     def _load_and_crop(self, path):
-        """Load image and apply current crop."""
+        """Load a reference image and apply the current crop and preprocessing.
+
+        References are stored uncropped, so the crop is applied here. Images
+        stored pre-cropped by older versions are used as-is: cropping those
+        again would compare the wrong region (and the crop rect cannot fit
+        inside an image that is already just the crop).
+        """
         if not os.path.exists(path):
             return None
         img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
         if img is None:
             return None
 
-        if self.crop:
-            x1, y1, x2, y2 = self.crop
-            h, w = img.shape
-            x1, x2 = max(0, min(x1, w)), max(0, min(x2, w))
-            y1, y2 = max(0, min(y1, h)), max(0, min(y2, h))
-            if x2 > x1 and y2 > y1:
-                img = img[y1:y2, x1:x2]
+        if self._crop_fits(img.shape):
+            img = self.apply_crop(img)
         img = self._denoise(img)
         if self.clahe is not None:
             img = self.clahe.apply(img)
@@ -117,48 +270,75 @@ class DeadboltDetector:
         return len(self.ref_images['locked']) > 0 and len(self.ref_images['unlocked']) > 0
 
     def get_frame(self, full=False):
-        """Fetch frame from camera."""
+        """Fetch a frame from the camera.
+
+        Always refreshes `last_full_frame`, and `last_cropped_frame` when a crop
+        is configured. Returns the full frame, or the cropped one unless
+        `full=True`.
+        """
         try:
             response = self.session.get(self.camera_url, timeout=max(10, self.refresh_rate))
             response.raise_for_status()
-
             frame = cv2.imdecode(
                 np.frombuffer(response.content, dtype=np.uint8),
                 cv2.IMREAD_COLOR
             )
-
-            if frame is None:
-                print("Failed to decode JPEG from camera")
-                self.camera_online = False
-                return None
-
-            self.camera_online = True
-            self.last_full_frame = frame.copy()
-
-            if not full and self.crop:
-                x1, y1, x2, y2 = self.crop
-                h, w = frame.shape[:2]
-                x1, x2 = max(0, min(x1, w)), max(0, min(x2, w))
-                y1, y2 = max(0, min(y1, h)), max(0, min(y2, h))
-                if x2 > x1 and y2 > y1:
-                    cropped = frame[y1:y2, x1:x2]
-                    self.last_cropped_frame = cropped.copy()
-                    frame = cropped
-
-            return frame
-
         except Exception as e:
             print(f"Camera error: {e}")
             self.camera_online = False
             return None
 
-    def compare(self, frame, reference):
-        """Calculate normalized similarity score (0-1, higher is better match).
-        
-        Uses normalized cross-correlation with histogram normalization to handle
-        both slight camera position changes and lighting variations.
+        if frame is None:
+            print("Failed to decode JPEG from camera")
+            self.camera_online = False
+            return None
+
+        self.camera_online = True
+        self.last_full_frame = frame.copy()
+        # The tight crop is what the WebUI and MQTT publish.
+        self.last_cropped_frame = self.apply_crop(frame).copy() if self.crop else None
+
+        return frame if (full or not self.crop) else self.last_cropped_frame
+
+    def detection_window(self):
+        """Region of the last frame that detection searches for the reference.
+
+        This is the configured crop widened by `align_search_pixels` so that
+        `compare()` has room to find small camera or door shifts. Returns
+        `(window, offset)`, where offset is where the reference (the tight crop)
+        is expected to sit inside the window — asymmetric when the crop is
+        against an image edge and there is no room to widen on that side.
         """
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        frame = self.last_full_frame
+        if frame is None:
+            return None, (0, 0)
+
+        margin = int(self.settings['align_search_pixels'])
+        if not self.crop or margin <= 0:
+            return self.apply_crop(frame), (0, 0)
+
+        x1, y1, x2, y2 = self.crop
+        h, w = frame.shape[:2]
+        x1, x2 = max(0, min(x1, w)), max(0, min(x2, w))
+        y1, y2 = max(0, min(y1, h)), max(0, min(y2, h))
+
+        wx1, wy1 = max(0, x1 - margin), max(0, y1 - margin)
+        wx2, wy2 = min(w, x2 + margin), min(h, y2 + margin)
+        if wx2 <= wx1 or wy2 <= wy1:
+            return self.apply_crop(frame), (0, 0)
+
+        return frame[wy1:wy2, wx1:wx2], (x1 - wx1, y1 - wy1)
+
+    def compare(self, frame, reference, offset=(0, 0)):
+        """Calculate normalized similarity score (0-1, higher is better match).
+
+        The frame is preprocessed exactly like the references are, then the
+        reference is located inside the frame with normalized cross-correlation
+        so that small camera shifts or door position changes do not tank the
+        score. `offset` is where the reference is expected to be within the
+        frame (see `detection_window`).
+        """
+        gray = frame if frame.ndim == 2 else cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         if gray.shape != reference.shape:
             gray = cv2.resize(gray, (reference.shape[1], reference.shape[0]))
@@ -168,48 +348,25 @@ class DeadboltDetector:
             gray = self.clahe.apply(gray)
         gray = self._normalize_lighting(gray, reference)
 
-        ref_h, ref_w = reference.shape
-        search_range = int(os.getenv('ALIGN_SEARCH_PIXELS', '15'))
+        search = int(self.settings['align_search_pixels'])
 
-        if search_range > 0 and gray.shape[0] > ref_h + 2*search_range and gray.shape[1] > ref_w + 2*search_range:
-            best_score = -1
-            h, w = gray.shape
-
-            for dy in range(-search_range, search_range + 1):
-                for dx in range(-search_range, search_range + 1):
-                    y_start = search_range + dy
-                    y_end = y_start + ref_h
-                    x_start = search_range + dx
-                    x_end = x_start + ref_w
-
-                    if y_end <= h and x_end <= w:
-                        window = gray[y_start:y_end, x_start:x_end]
-
-                        mean_ref = np.mean(reference)
-                        mean_win = np.mean(window)
-
-                        ref_centered = reference.astype(np.float32) - mean_ref
-                        win_centered = window.astype(np.float32) - mean_win
-
-                        norm_ref = np.sqrt(np.sum(ref_centered ** 2))
-                        norm_win = np.sqrt(np.sum(win_centered ** 2))
-
-                        if norm_ref > 0 and norm_win > 0:
-                            ncc = np.sum(ref_centered * win_centered) / (norm_ref * norm_win)
-                            ncc = max(0, ncc)
-                            if ncc > best_score:
-                                best_score = ncc
-
-            if best_score < 0:
-                return 0.0
-
-            score = best_score ** 0.5
-            return score
+        # A constant reference has no variance to correlate against, and
+        # alignment can be switched off with align_search_pixels=0.
+        if search > 0 and float(np.std(reference)) > 0:
+            result = cv2.matchTemplate(gray, reference, cv2.TM_CCOEFF_NORMED)
+            # matchTemplate indexes by the reference's top-left corner; only the
+            # positions within +/- search of where the crop actually is are
+            # candidates, clamped to what fits.
+            cy, cx = offset
+            y0, y1 = max(0, cy - search), min(result.shape[0], cy + search + 1)
+            x0, x1 = max(0, cx - search), min(result.shape[1], cx + search + 1)
+            if y1 > y0 and x1 > x0:
+                best = float(result[y0:y1, x0:x1].max())
+                return min(1.0, max(0.0, best)) ** 0.5
 
         diff = cv2.absdiff(gray, reference)
-        mae = np.mean(diff)
-        similarity = 1.0 - (mae / 255.0)
-        return similarity
+        mae = float(np.mean(diff))
+        return 1.0 - (mae / 255.0)
 
     def _normalize_lighting(self, img, reference):
         """Normalize img to match reference's histogram for lighting invariance."""
@@ -227,89 +384,84 @@ class DeadboltDetector:
 
     def detect(self):
         """Run detection comparing against all reference images."""
-        frame = self.get_frame(full=False)
+        settings = self.settings
+        frame = self.get_frame(full=True)
         if frame is None:
-            return None, 0
+            return None, 0.0
 
         if not self.has_references():
-            return "unconfigured", 0
+            return "unconfigured", 0.0
 
-        # Compare against all references, use best match for each state
-        locked_scores = []
-        for ref in self.ref_images['locked']:
-            score = self.compare(frame, ref['image'])
-            locked_scores.append(score)
-
-        unlocked_scores = []
-        for ref in self.ref_images['unlocked']:
-            score = self.compare(frame, ref['image'])
-            unlocked_scores.append(score)
+        window, offset = self.detection_window()
 
         # Use best (highest) similarity for each state
-        best_locked = max(locked_scores) if locked_scores else 0
-        best_unlocked = max(unlocked_scores) if unlocked_scores else 0
+        best = {
+            state: max(
+                (self.compare(window, ref['image'], offset) for ref in self.ref_images[state]),
+                default=0.0,
+            )
+            for state in ('locked', 'unlocked')
+        }
 
         # Determine state (which side had the better best-match)
-        if best_locked > best_unlocked:
-            state = "locked"
-            chosen = best_locked
-            other = best_unlocked
-        else:
-            state = "unlocked"
-            chosen = best_unlocked
-            other = best_locked
+        state = 'locked' if best['locked'] > best['unlocked'] else 'unlocked'
+        chosen = best[state]
+        other = best['unlocked' if state == 'locked' else 'locked']
 
         # Confidence formula:
         # confidence = (chosen ^ power) * sigmoid(alpha * delta)
         # - Power boosts the raw similarity score (0.9 -> ~0.95 with power=0.7)
         # - Sigmoid uses difference (delta) for margin sensitivity
         # Tunable via CONF_ALPHA (default 50.0) and CONF_POWER (default 0.75)
-        alpha = float(os.getenv('CONF_ALPHA', '50.0'))
-        power = float(os.getenv('CONF_POWER', '0.75'))
-        delta = float(chosen) - float(other)
+        delta = chosen - other
+        exponent = -settings['conf_alpha'] * delta
         try:
-            p = 1.0 / (1.0 + math.exp(-alpha * delta))
+            p = 1.0 / (1.0 + math.exp(exponent))
         except OverflowError:
-            p = 0.0 if (alpha * delta) < 0 else 1.0
+            p = 0.0 if exponent > 0 else 1.0
 
-        boosted = float(chosen) ** power
-        confidence = boosted * float(p)
+        boosted = chosen ** settings['conf_power']
+        confidence = float(max(0.0, min(1.0, boosted * p)))
 
         # Debug output when enabled
-        if os.getenv('DETECTOR_DEBUG') == '1':
+        if settings['detector_debug']:
             print(
-                f"detect: locked={best_locked:.4f}, unlocked={best_unlocked:.4f}, chosen={chosen:.4f}, other={other:.4f}, p={p:.4f}, conf={confidence:.4f}"
+                f"detect: locked={best['locked']:.4f}, unlocked={best['unlocked']:.4f}, "
+                f"chosen={chosen:.4f}, other={other:.4f}, p={p:.4f}, conf={confidence:.4f}"
             )
-
-        # Clamp to [0,1]
-        confidence = float(max(0.0, min(1.0, confidence)))
 
         return state, confidence
 
+    def new_reference_path(self, state):
+        """Pick an unused path for a new reference image.
+
+        Timestamps only have second resolution, so a suffix is added rather
+        than letting two captures in the same second overwrite each other.
+        """
+        ensure_dirs()
+        stamp = int(time.time())
+        path = os.path.join(REFS_DIR, state, f"{state}_{stamp}.jpg")
+        suffix = 1
+        while os.path.exists(path):
+            path = os.path.join(REFS_DIR, state, f"{state}_{stamp}_{suffix}.jpg")
+            suffix += 1
+        return path
+
     def capture_reference(self, state, frame=None):
-        """Capture current frame as new reference image."""
+        """Capture the current frame as a new reference image.
+
+        The uncropped frame is stored so that changing the crop later re-crops
+        existing references instead of cropping them a second time.
+        """
         if frame is None:
             frame = self.get_frame(full=True)
         if frame is None:
             return None
 
-        # Apply crop if set
-        if self.crop:
-            x1, y1, x2, y2 = self.crop
-            h, w = frame.shape[:2]
-            x1, x2 = max(0, min(x1, w)), max(0, min(x2, w))
-            y1, y2 = max(0, min(y1, h)), max(0, min(y2, h))
-            if x2 > x1 and y2 > y1:
-                frame = frame[y1:y2, x1:x2]
-
         # Convert to grayscale and save
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if len(frame.shape) == 3 else frame
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
 
-        # Generate filename with timestamp
-        timestamp = int(time.time())
-        filename = f"{state}_{timestamp}.jpg"
-        filepath = os.path.join(REFS_DIR, state, filename)
-
+        filepath = self.new_reference_path(state)
         cv2.imwrite(filepath, gray)
 
         # Reload references
@@ -318,8 +470,12 @@ class DeadboltDetector:
         return filepath
 
     def delete_reference(self, state, filename):
-        """Delete a reference image."""
-        filepath = os.path.join(REFS_DIR, state, filename)
+        """Delete a reference image. Only plain .jpg names inside the state
+        directory are accepted."""
+        name = os.path.basename(filename)
+        if name != filename or not name.lower().endswith('.jpg'):
+            return False
+        filepath = os.path.join(REFS_DIR, state, name)
         if os.path.exists(filepath):
             os.remove(filepath)
             self._load_all_references()
@@ -337,21 +493,19 @@ class DeadboltDetector:
         return False
 
 
-def compute_published_state(state: str, confidence: float) -> str:
+def compute_published_state(state: str, confidence: float, min_confidence: float = None) -> str:
     """Compute the state to publish to MQTT/WebUI.
 
     If the detector reports `locked` or `unlocked` but the confidence is
-    below the configured minimum (env `MIN_CONFIDENCE`, default 0.7),
-    return "unknown". Otherwise preserve the historical published
-    semantics by delegating to `map_state_for_publish`.
+    below the configured minimum (setting `min_confidence`, env
+    `MIN_CONFIDENCE`, default 0.7), return "unknown". Otherwise preserve the
+    historical published semantics by delegating to `map_state_for_publish`.
     """
-    try:
-        min_conf = float(os.getenv("MIN_CONFIDENCE", "0.7"))
-    except Exception:
-        min_conf = 0.7
+    if min_confidence is None:
+        min_confidence = env_setting("min_confidence")
 
     if state in ("locked", "unlocked"):
-        if confidence < min_conf:
+        if confidence < min_confidence:
             return "unknown"
         return map_state_for_publish(state)
     return state
@@ -366,4 +520,3 @@ def map_state_for_publish(state: str) -> str:
     """
     # Pass through unchanged - detector state is already correct
     return state
-

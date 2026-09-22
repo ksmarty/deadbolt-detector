@@ -1,24 +1,44 @@
 import os
-import json
-import time
+import base64
 import cv2
 import numpy as np
-import base64
 from flask import Flask, render_template, jsonify, request
-from detector import REFS_DIR, compute_published_state
-import glob
+from detector import (
+    CONFIG_DIR,
+    TUNABLES,
+    compute_published_state,
+    env_setting,
+)
 
 app = Flask(__name__)
 detector = None
+
+
+def _json_body():
+    """Return the JSON request body, or an empty dict if there isn't one."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
+
+
+def _parse_coords(coords):
+    """Validate a crop coordinate list, returning ints or None if unusable."""
+    if not isinstance(coords, (list, tuple)) or len(coords) != 4:
+        return None
+    try:
+        return [int(c) for c in coords]
+    except (TypeError, ValueError):
+        return None
+
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
+
 @app.route('/api/frame')
 def get_frame():
     """Return current live frame with crop overlay."""
-    detection_frame = detector.get_frame(full=False)
+    detector.get_frame(full=False)
 
     if detector.last_full_frame is None:
         return jsonify({
@@ -42,25 +62,32 @@ def get_frame():
         'resolution': display_frame.shape[:2]
     })
 
+
 @app.route('/api/crop', methods=['GET', 'POST'])
 def crop_endpoint():
     if request.method == 'GET':
         return jsonify({'coords': list(detector.crop) if detector.crop else None})
 
-    data = request.get_json()
-    coords = data.get('coords', [])
+    data = _json_body()
+    coords = data.get('coords')
 
-    if len(coords) == 4:
-        detector.crop = tuple(coords)
-        detector._save_crop()
-        detector._load_all_references()
-        return jsonify({'success': True, 'crop': coords})
-    elif len(coords) == 0:
+    if coords in (None, [], ()):
         detector.crop = None
         detector._save_crop()
+        # References are cropped on load, so they have to be reloaded for the
+        # new crop (or lack of one) to take effect.
+        detector._load_all_references()
         return jsonify({'success': True, 'crop': None})
 
-    return jsonify({'success': False, 'error': 'Invalid coordinates'}), 400
+    parsed = _parse_coords(coords)
+    if parsed is None:
+        return jsonify({'success': False, 'error': 'Invalid coordinates'}), 400
+
+    detector.crop = tuple(parsed)
+    detector._save_crop()
+    detector._load_all_references()
+    return jsonify({'success': True, 'crop': list(detector.crop)})
+
 
 @app.route('/api/references')
 def get_references():
@@ -109,11 +136,11 @@ def get_references():
 
     return jsonify(result)
 
+
 @app.route('/api/capture', methods=['POST'])
 def capture_reference():
     """Capture current frame as new reference."""
-    data = request.get_json()
-    state = data.get('type')
+    state = _json_body().get('type')
 
     if state not in ['locked', 'unlocked']:
         return jsonify({'success': False, 'error': 'Invalid type'}), 400
@@ -128,6 +155,7 @@ def capture_reference():
         })
     else:
         return jsonify({'success': False, 'error': 'Failed to capture'}), 500
+
 
 @app.route('/api/upload', methods=['POST'])
 def upload_reference():
@@ -151,28 +179,19 @@ def upload_reference():
         if img is None:
             return jsonify({'success': False, 'error': 'Invalid image'}), 400
 
-        # Apply crop if set
-        if detector.crop:
-            x1, y1, x2, y2 = detector.crop
-            h, w = img.shape[:2]
-            x1, x2 = max(0, min(x1, w)), max(0, min(x2, w))
-            y1, y2 = max(0, min(y1, h)), max(0, min(y2, h))
-            if x2 > x1 and y2 > y1:
-                img = img[y1:y2, x1:x2]
-
+        # Store the uncropped image; the detector crops references on load so
+        # that changing the crop does not crop them twice.
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        # Save with timestamp
-        timestamp = int(time.time())
-        filename = f"{state}_{timestamp}.jpg"
-        filepath = os.path.join(REFS_DIR, state, filename)
+        filepath = detector.new_reference_path(state)
         cv2.imwrite(filepath, gray)
 
         detector._load_all_references()
-        return jsonify({'success': True, 'filename': filename})
+        return jsonify({'success': True, 'filename': os.path.basename(filepath)})
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/api/reference/<state>/<filename>', methods=['DELETE'])
 def delete_reference(state, filename):
@@ -183,15 +202,19 @@ def delete_reference(state, filename):
     success = detector.delete_reference(state, filename)
     return jsonify({'success': success})
 
+
 @app.route('/api/references/batch-delete', methods=['POST'])
 def batch_delete_references():
     """Delete multiple reference images."""
-    data = request.get_json()
+    data = _json_body()
     state = data.get('state')
     filenames = data.get('filenames', [])
 
     if state not in ['locked', 'unlocked']:
         return jsonify({'success': False, 'error': 'Invalid state'}), 400
+
+    if not isinstance(filenames, list):
+        return jsonify({'success': False, 'error': 'Invalid filenames'}), 400
 
     deleted = 0
     for filename in filenames:
@@ -200,21 +223,67 @@ def batch_delete_references():
 
     return jsonify({'success': True, 'deleted': deleted})
 
+
 @app.route('/api/config')
 def get_config():
-    """Return current configuration info."""
-    config = {
-        'camera_url': os.environ.get('CAMERA_URL', 'Not set'),
-        'mqtt_host': os.environ.get('MQTT_HOST', 'Not set'),
-        'mqtt_port': os.environ.get('MQTT_PORT', 'Not set'),
-        'mqtt_user': os.environ.get('MQTT_USER', 'Not set'),
-        'detector_debug': os.environ.get('DETECTOR_DEBUG', '0'),
-        'min_confidence': os.environ.get('MIN_CONFIDENCE', '0.7'),
-        'align_search_pixels': os.environ.get('ALIGN_SEARCH_PIXELS', '15'),
-        'conf_alpha': os.environ.get('CONF_ALPHA', '50.0'),
-        'conf_power': os.environ.get('CONF_POWER', '0.75'),
-    }
-    return jsonify(config)
+    """Return connection info and the current value of every tunable."""
+    info = [
+        ('camera_url', os.environ.get('CAMERA_URL', 'Not set')),
+        ('mqtt_host', os.environ.get('MQTT_HOST', 'Not set')),
+        ('mqtt_port', os.environ.get('MQTT_PORT', 'Not set')),
+        ('mqtt_user', os.environ.get('MQTT_USER', 'Not set')),
+        ('mqtt_topic', os.environ.get('MQTT_TOPIC', 'home/deadbolt')),
+        ('config_dir', CONFIG_DIR),
+    ]
+
+    settings = [
+        {
+            'key': key,
+            'env_var': env_var,
+            'env_value': str(env_setting(key)),
+            'effective_value': str(detector.settings[key]),
+            'override': detector.overrides.get(key),
+        }
+        for key, (env_var, _, _) in TUNABLES.items()
+    ]
+
+    return jsonify({
+        'info': [{'key': key, 'value': value} for key, value in info],
+        'settings': settings,
+    })
+
+
+@app.route('/api/overrides', methods=['GET', 'POST'])
+def overrides_endpoint():
+    """Read or replace the runtime setting overrides."""
+    if request.method == 'GET':
+        return jsonify({
+            'overrides': detector.overrides,
+            'settings': detector.settings,
+        })
+
+    overrides = _json_body().get('overrides')
+    if not isinstance(overrides, dict):
+        return jsonify({'success': False, 'error': 'Expected an "overrides" object'}), 400
+
+    unknown = sorted(set(overrides) - set(TUNABLES))
+    if unknown:
+        return jsonify({
+            'success': False,
+            'error': f'Unknown setting(s): {", ".join(unknown)}'
+        }), 400
+
+    try:
+        settings = detector.set_overrides(overrides)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+    return jsonify({
+        'success': True,
+        'overrides': detector.overrides,
+        'settings': settings,
+    })
+
 
 @app.route('/api/detect')
 def test_detect():
@@ -222,7 +291,9 @@ def test_detect():
     state, confidence = detector.detect()
 
     # Map internal state + confidence to the published state (unknown when low confidence)
-    publish_state = compute_published_state(state, confidence)
+    publish_state = compute_published_state(
+        state, confidence, detector.settings['min_confidence']
+    )
 
     # Return decimal confidence (0-1) and a human readable percent
     confidence_pct = round(confidence * 100, 1)
@@ -240,6 +311,7 @@ def test_detect():
         'confidence': confidence,
         'confidence_pct': f"{confidence_pct}%"
     })
+
 
 def run_webui(detector_instance, host='0.0.0.0', port=5000):
     global detector

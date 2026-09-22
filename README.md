@@ -10,8 +10,11 @@ Features
 - Low-confidence mapping: detections below `MIN_CONFIDENCE` map to `unknown`
 - Image denoising to reduce frame-to-frame confidence variance
 - CLAHE local contrast enhancement for robustness to lighting drift
-- Configurable NCC alignment window to handle small camera bumps and door position variation
+- NCC alignment window handles small camera bumps and door position variation: the reference is located inside a window around the configured crop rather than compared pixel-for-pixel
+- Runtime-tunable settings from the WebUI config modal, applied live and persisted to `config/overrides.json`
 - Camera health monitoring: marks entities unavailable and publishes a placeholder image when the camera is unreachable
+
+References are stored **uncropped** and the crop is applied when they are loaded, so changing the crop re-crops every existing reference. Reference images written by older versions (which stored the already-cropped region) are still used as-is.
 
 Quick start (Docker Compose)
 
@@ -34,10 +37,12 @@ docker compose up --build -d
 docker compose logs -f deadbolt-detector
 ```
 
-Or run locally:
+Or run locally (point `CONFIG_DIR` somewhere writable — it defaults to the
+container path `/app/config`):
 
 ```bash
 pip install -r requirements.txt
+export CONFIG_DIR="$PWD/config"
 export CAMERA_URL="https://camera.local/current.jpg"
 export MQTT_HOST="192.168.1.1"
 python3 app/main.py
@@ -69,26 +74,34 @@ Below are all environment variables used by the application and their defaults (
 | Variable | Default | Description |
 |---|---:|---|
 | CAMERA_URL | (required) | URL for camera snapshots (HTTP endpoint). Example: `https://camera.local/cgi-bin/currentpic.cgi` |
+| CONFIG_DIR | `/app/config` | Directory for `crop.json`, `overrides.json` and `references/` |
 | MQTT_HOST | `mqtt` | MQTT broker host or IP |
 | MQTT_PORT | `1883` | MQTT broker port |
 | MQTT_USER | `` | MQTT username (optional) |
 | MQTT_PASS | `` | MQTT password (optional) |
-| MQTT_TOPIC | `home/deadbolt` | Base MQTT topic used for state, camera and availability |
-| REFRESH_RATE | `5` | Detection loop interval in seconds |
+| MQTT_TOPIC | `home/deadbolt` | **Base** MQTT topic; `state`, `availability`, `camera`, `camera_cropped` and `command/*` are appended to it |
+| REFRESH_RATE | `5` | Detection loop interval in seconds (minimum 1) |
 | MQTT_DISCOVERY_PREFIX | `homeassistant` | MQTT discovery prefix used by Home Assistant |
 | MQTT_DEVICE_NAME | `Deadbolt Detector` | Friendly device name used in discovery payloads |
 | MQTT_DEVICE_ID | `` | Optional device identifier; defaults to a sanitized `MQTT_TOPIC` if empty |
 | CONF_ALPHA | `50.0` | Alpha parameter used in the sigmoid confidence formula (tuning) |
 | CONF_POWER | `0.75` | Power boost applied to the chosen similarity score in confidence formula |
-| ALIGN_SEARCH_PIXELS | `15` | Search range for NCC alignment (handles slight camera/door position shifts; higher=more tolerance but slower) |
+| ALIGN_SEARCH_PIXELS | `15` | How far (in pixels) around the crop the reference may be found when matching. `0` disables alignment and falls back to a direct pixel difference |
 | DENOISE_STRENGTH | `0` | OpenCV fastNlMeansDenoising strength applied to frames and references (0=off, 10=mild, higher=stronger) |
 | CLAHE_CLIP_LIMIT | `2.0` | CLAHE local contrast enhancement clip limit (0=off, ~2=moderate, higher=stronger local contrast) |
 | DETECTOR_DEBUG | (not set) | Set to `1` to enable detector debug output |
 | MIN_CONFIDENCE | `0.7` | Minimum confidence [0:1]. Detections below this are mapped to `unknown` |
 
+Everything except the connection settings (`CAMERA_URL`, `MQTT_*`, `CONFIG_DIR`,
+`REFRESH_RATE`) can also be overridden at runtime from the WebUI **Config**
+button. Overrides take effect immediately, are written to
+`$CONFIG_DIR/overrides.json` so they survive a restart, and can be cleared by
+unticking *Override* to fall back to the env var. Env values that are empty or
+unparseable fall back to the documented default instead of crashing.
+
 Notes for Home Assistant
 - The app publishes a plain `sensor` for the lock state (text) and a separate `sensor` for confidence (percentage), plus two MQTT cameras (full frame and cropped), an availability topic, and two button entities for capturing references. The lock sensor uses `value_json.state` to read the textual state.
-- The cropped camera focuses on the region of interest (configured via the WebUI at `/crop`). It shows the same area used for detection.
+- The cropped camera focuses on the region of interest (configured in the WebUI crop editor). It shows the same area used for detection.
 - Two buttons (`Capture Locked` and `Capture Unlocked`) are available to capture reference images from Home Assistant.
 - Published states are Title Case (e.g., `Locked`, `Unlocked`, `Unknown`).
 - If the camera becomes unreachable, all entities are marked unavailable via the availability topic and a "Camera Offline" placeholder is published to both camera topics. Entities return to normal automatically when the camera recovers.
@@ -117,7 +130,14 @@ docker run --rm eclipse-mosquitto mosquitto_sub -h <broker> -t 'homeassistant/#'
 
 Developer notes
 - Detection and publish mapping live in `app/detector.py` (see `compute_published_state()` and `map_state_for_publish()`), and the MQTT/discovery logic is in `app/main.py`.
+- `compute_published_state()` takes an optional `min_confidence`; both `main.py` and `webui.py` pass the detector's effective setting so runtime overrides apply consistently.
+- Tunables live in the `TUNABLES` table at the top of `app/detector.py` (env var, caster, default). Adding an entry there makes it available to the env, the override file and the WebUI config modal.
 - Do not change the mapping logic unless you want different HA semantics — the UI intentionally shares the same mapping function to keep behavior consistent.
+
+Known limitations
+- The reference is located with normalized cross-correlation, so its score is on a different scale than the plain pixel-difference fallback used when `ALIGN_SEARCH_PIXELS=0`. If you change that setting, re-check `MIN_CONFIDENCE`.
+- Changing the crop re-crops existing references, which requires them to have been stored uncropped. References captured before that change are used as-is and will not follow crop edits.
+- Reference images are matched against the raw frame; if the camera resolution changes, references are resized to match and scores drop until re-captured.
 
 License & Contributing
 - PRs welcome. Please open issues for bugs or feature requests.

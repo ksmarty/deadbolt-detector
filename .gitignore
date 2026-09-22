@@ -1,2 +1,12 @@
+# Environment / local overrides
 .env
-app/__pycache__
+
+# Runtime data (crop, setting overrides, reference images)
+config/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# macOS
+.DS_Store

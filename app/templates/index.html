@@ -544,101 +544,76 @@
         color: white;
       }
 
-.config-list {
-        font-size: 1.1em;
-        line-height: 2;
+      .config-list {
+        font-size: 1em;
+      }
+      .config-list h4 {
+        margin: 18px 0 6px;
+        font-size: 0.85em;
+        color: #4caf50;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
       }
       .config-list .config-row {
         display: flex;
         justify-content: space-between;
-        padding: 10px 0;
-        border-bottom: 1px solid #333;
         align-items: center;
+        gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid #333;
       }
       .config-list .config-key {
         color: #888;
         font-weight: bold;
-        min-width: 200px;
+        min-width: 170px;
       }
       .config-list .config-env-value {
         color: #666;
         font-family: monospace;
-        font-size: 0.9em;
-        max-width: 300px;
+        font-size: 0.85em;
+        max-width: 260px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-      }
-      .config-list .config-input {
-        background: #222;
-        border: 1px solid #444;
-        color: #fff;
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-family: monospace;
-        width: 250px;
-        font-size: 1em;
-      }
-      .config-list .config-input:disabled {
-        opacity: 0.5;
-      }
-      .config-toggle {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-right: 12px;
-      }
-      .config-toggle input[type="checkbox"] {
-        width: 20px;
-        height: 20px;
-        accent-color: #4caf50;
-      }
-      .config-toggle span {
-        font-size: 0.85em;
-        color: #aaa;
-      }
-      .config-list .config-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 4px 0;
-        border-bottom: 1px solid #333;
-      }
-      .config-list .config-key {
-        color: #888;
-      }
-      .config-list .config-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 6px 0;
-        border-bottom: 1px solid #333;
-        align-items: center;
       }
       .config-list .config-value {
         color: #ccc;
         font-family: monospace;
-        max-width: 200px;
+        font-size: 0.9em;
+        max-width: 420px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+      .config-tunable {
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
       .config-list .config-input {
         background: #222;
         border: 1px solid #444;
         color: #fff;
-        padding: 4px 8px;
+        padding: 6px 10px;
         border-radius: 4px;
         font-family: monospace;
-        width: 180px;
+        width: 130px;
         font-size: 0.85em;
       }
       .config-list .config-input:disabled {
-        opacity: 0.5;
+        opacity: 0.4;
+      }
+      .config-list .config-effective {
+        color: #4caf50;
+        font-family: monospace;
+        font-size: 0.85em;
+        min-width: 70px;
       }
       .config-toggle {
         display: flex;
         align-items: center;
         gap: 6px;
-        margin-right: 8px;
+        margin-right: 4px;
       }
       .config-toggle input[type="checkbox"] {
         width: 16px;
@@ -646,7 +621,7 @@
         accent-color: #4caf50;
       }
       .config-toggle span {
-        font-size: 0.7em;
+        font-size: 0.75em;
         color: #888;
       }
 
@@ -765,7 +740,7 @@
       <div class="modal" style="width: 75vw; max-width: 1200px; max-height: 85vh; display: block; overflow: hidden;">
         <div style="padding-bottom: 15px; border-bottom: 1px solid #333; margin-bottom: 15px;">
           <h3 style="font-size: 1.4em;">Configuration</h3>
-          <p style="font-size: 0.9em; color: #888; margin-top: 5px;">Override values with local settings. Toggle off to use env var.</p>
+          <p style="font-size: 0.9em; color: #888; margin-top: 5px;">Overrides are applied to the running detector and saved to <code>config_dir/overrides.json</code>. Uncheck to fall back to the env var.</p>
         </div>
         <div id="configContent" class="config-list" style="max-height: calc(85vh - 150px); overflow-y: auto;"></div>
         <div class="modal-buttons">
@@ -1016,66 +991,132 @@
       }
 
       // Config modal
-      let currentConfig = {};
+      let currentSettings = [];
 
       function showConfigModal() {
         fetch('/api/config')
           .then(r => r.json())
           .then(data => {
-            currentConfig = data;
-            const content = document.getElementById('configContent');
-            content.innerHTML = '';
-
-            // Load local overrides from localStorage
-            const saved = JSON.parse(localStorage.getItem('configOverrides') || '{}');
-
-            for (const [key, value] of Object.entries(data)) {
-              const row = document.createElement('div');
-              row.className = 'config-row';
-
-              const override = saved[key];
-              const isEnabled = override !== undefined && override !== '';
-              const overrideValue = isEnabled ? override : '';
-
-              row.innerHTML = `
-                <span class="config-key">${key}</span>
-                <span class="config-env-value" title="${value}">${value}</span>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                  <div class="config-toggle">
-                    <input type="checkbox" id="override_${key}" ${isEnabled ? 'checked' : ''} onchange="toggleOverride('${key}')">
-                    <span>Override</span>
-                  </div>
-                  <input type="text" class="config-input" id="value_${key}" value="${overrideValue}" placeholder="Override value">
-                </div>
-              `;
-              content.appendChild(row);
-            }
+            renderConfig(data);
             document.getElementById('configModal').classList.add('active');
           })
           .catch(err => showToast('Failed to load config', 'error'));
       }
 
-      function toggleOverride(key) {
-        const checkbox = document.getElementById('override_' + key);
+      // Build a row out of real DOM nodes so env values can never inject markup.
+      function configRow(keyText, valueText) {
+        const row = document.createElement('div');
+        row.className = 'config-row';
+
+        const key = document.createElement('span');
+        key.className = 'config-key';
+        key.textContent = keyText;
+
+        const value = document.createElement('span');
+        value.className = 'config-value';
+        value.textContent = valueText;
+        value.title = valueText;
+
+        row.append(key, value);
+        return row;
+      }
+
+      function renderConfig(config) {
+        const content = document.getElementById('configContent');
+        content.innerHTML = '';
+        currentSettings = config.settings || [];
+
+        const infoTitle = document.createElement('h4');
+        infoTitle.textContent = 'Connection (env vars — restart to change)';
+        content.appendChild(infoTitle);
+
+        (config.info || []).forEach(item => {
+          content.appendChild(configRow(item.key, item.value));
+        });
+
+        const settingsTitle = document.createElement('h4');
+        settingsTitle.textContent = 'Detection tunables';
+        content.appendChild(settingsTitle);
+
+        currentSettings.forEach(setting => {
+          const row = document.createElement('div');
+          row.className = 'config-row';
+
+          const key = document.createElement('span');
+          key.className = 'config-key';
+          key.textContent = setting.key;
+
+          const env = document.createElement('span');
+          env.className = 'config-env-value';
+          env.textContent = `${setting.env_var}=${setting.env_value}`;
+          env.title = env.textContent;
+
+          const tunable = document.createElement('div');
+          tunable.className = 'config-tunable';
+
+          const hasOverride = setting.override !== null && setting.override !== undefined;
+
+          const toggle = document.createElement('label');
+          toggle.className = 'config-toggle';
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.id = `override_${setting.key}`;
+          checkbox.checked = hasOverride;
+          const toggleLabel = document.createElement('span');
+          toggleLabel.textContent = 'Override';
+          toggle.append(checkbox, toggleLabel);
+
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'config-input';
+          input.id = `value_${setting.key}`;
+          input.value = hasOverride ? setting.override : setting.env_value;
+          input.placeholder = setting.env_value;
+          input.disabled = !hasOverride;
+
+          checkbox.addEventListener('change', () => {
+            input.disabled = !checkbox.checked;
+            input.value = checkbox.checked ? (input.value.trim() || setting.env_value) : setting.env_value;
+          });
+
+          const effective = document.createElement('span');
+          effective.className = 'config-effective';
+          effective.id = `effective_${setting.key}`;
+          effective.textContent = `= ${setting.effective_value}`;
+          effective.title = 'Currently in effect';
+
+          tunable.append(toggle, input, effective);
+          row.append(key, env, tunable);
+          content.appendChild(row);
+        });
       }
 
       function saveConfig() {
-        const saved = JSON.parse(localStorage.getItem('configOverrides') || '{}');
+        const overrides = {};
 
-        for (const key of Object.keys(currentConfig)) {
-          const checkbox = document.getElementById('override_' + key);
-          const input = document.getElementById('value_' + key);
+        currentSettings.forEach(setting => {
+          const checkbox = document.getElementById(`override_${setting.key}`);
+          const input = document.getElementById(`value_${setting.key}`);
+          if (!checkbox || !input || !checkbox.checked) return;
+          const value = input.value.trim();
+          if (value) overrides[setting.key] = value;
+        });
 
-          if (checkbox && checkbox.checked && input.value.trim()) {
-            saved[key] = input.value.trim();
-          } else {
-            delete saved[key];
-          }
-        }
-
-        localStorage.setItem('configOverrides', JSON.stringify(saved));
-        showToast('Configuration saved', 'success');
-        closeConfigModal();
+        fetch('/api/overrides', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ overrides }),
+        })
+          .then(r => r.json().then(data => ({ ok: r.ok, data })))
+          .then(({ ok, data }) => {
+            if (!ok || !data.success) {
+              showToast(data.error || 'Failed to save configuration', 'error');
+              return;
+            }
+            showToast('Configuration applied', 'success');
+            showConfigModal();
+          })
+          .catch(err => showToast('Failed to save configuration', 'error'));
       }
 
       function closeConfigModal() {
@@ -1615,71 +1656,6 @@
           ? "Show more"
           : "Show less";
       }
-
-      //   function updateRefCollapse(state) {
-      //     const grid = document.getElementById(state + "Grid");
-      //     const wrapper = document.getElementById(state + "GridWrapper");
-      //     const btn = document.getElementById(state + "Toggle");
-      //     if (!grid || !wrapper || !btn) return;
-
-      //     const children = Array.from(grid.children || []);
-      //     const cols = getComputedStyle(grid).gridTemplateColumns
-      //       ? getComputedStyle(grid)
-      //           .gridTemplateColumns.split(" ")
-      //           .filter(Boolean).length
-      //       : 1;
-      //     const rows = Math.ceil(children.length / cols);
-
-      //     if (rows <= 2) {
-      //       btn.style.display = "none";
-      //       wrapper.classList.remove("collapsed");
-      //       wrapper.style.maxHeight = "";
-      //       return;
-      //     }
-
-      //     btn.style.display = "inline-block";
-
-      //     if (wrapper.classList.contains("collapsed")) {
-      //       const visibleCount = Math.min(children.length, cols * 2);
-      //       const visibleChildren = children.slice(0, visibleCount);
-      //       if (visibleChildren.length === 0) {
-      //         wrapper.style.maxHeight = "";
-      //         wrapper.style.overflow = "";
-      //         btn.textContent = "Show more";
-      //         return;
-      //       }
-
-      //       let topMost = Infinity;
-      //       let bottomMost = -Infinity;
-      //       visibleChildren.forEach((ch) => {
-      //         const r = ch.getBoundingClientRect();
-      //         if (r.top < topMost) topMost = r.top;
-      //         if (r.bottom > bottomMost) bottomMost = r.bottom;
-      //       });
-
-      //       const gap = parseFloat(getComputedStyle(grid).gap) || 8;
-      //       const gridStyle = getComputedStyle(grid);
-      //       const marginTop = parseFloat(gridStyle.marginTop) || 0;
-      //       const marginBottom = parseFloat(gridStyle.marginBottom) || 0;
-
-      //       // Compute height based on children's bounding boxes and include grid margins
-      //       const visibleHeight = Math.round(bottomMost - topMost);
-      //       const padding = 4; // small safety padding
-      //       const maxHeight =
-      //         visibleHeight +
-      //         Math.round(gap) +
-      //         Math.round(marginTop + marginBottom) +
-      //         padding;
-
-      //       wrapper.style.maxHeight = maxHeight + "px";
-      //       wrapper.style.overflow = "hidden";
-      //       btn.textContent = "Show more";
-      //     } else {
-      //       wrapper.style.maxHeight = "";
-      //       wrapper.style.overflow = "";
-      //       btn.textContent = "Show less";
-      //     }
-      //   }
 
       function confirmDelete(state, filename) {
         showConfirm(
