@@ -1,160 +1,323 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <title>Deadbolt Detector Config</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deadbolt Detector</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23151a24'/%3E%3Cpath d='M10 14v-2a6 6 0 0 1 12 0v2' fill='none' stroke='%233d7dff' stroke-width='2.5' stroke-linecap='round'/%3E%3Crect x='8' y='14' width='16' height='12' rx='3' fill='%233d7dff'/%3E%3C/svg%3E"
+    />
     <style>
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
+      /* ---------------------------------------------------------------- tokens */
+      :root {
+        --bg: #0d1016;
+        --bg-elev: #141821;
+        --bg-sunken: #090b10;
+        --surface: #1a1f2b;
+        --surface-hover: #212838;
+        --border: #272e3d;
+        --border-strong: #39425a;
+        --text: #e8ecf3;
+        --text-muted: #98a2b6;
+        --text-dim: #6a7488;
+        --accent: #3d7dff;
+        --accent-hover: #5b91ff;
+        --accent-soft: rgba(61, 125, 255, 0.15);
+        --success: #22c55e;
+        --success-soft: rgba(34, 197, 94, 0.14);
+        --danger: #ef4444;
+        --danger-hover: #f87171;
+        --danger-soft: rgba(239, 68, 68, 0.14);
+        --warning: #f59e0b;
+        --warning-soft: rgba(245, 158, 11, 0.14);
+        --info: #38bdf8;
+        --info-soft: rgba(56, 189, 248, 0.14);
+        --crop: #2fe08a;
+        --radius: 10px;
+        --radius-sm: 7px;
+        --radius-pill: 999px;
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        --sidebar-width: 340px;
+        --topbar-height: 58px;
       }
+
+      /* ------------------------------------------------------------- baseline */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
       body {
-        font-family: system-ui, sans-serif;
-        height: 100vh;
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
       }
 
-      /* Toast notifications - bottom right */
-      .toast-container {
-        position: fixed;
-        bottom: 15px;
-        right: 15px;
-        z-index: 1000;
-        display: flex;
-        flex-direction: column-reverse;
-        gap: 8px;
-        max-width: 320px;
+      h1,
+      h2,
+      h3,
+      h4,
+      p {
+        margin: 0;
       }
 
-      .toast {
-        padding: 12px 16px;
-        border-radius: 6px;
-        color: white;
+      button,
+      input {
+        font: inherit;
+        color: inherit;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+
+      .muted {
+        color: var(--text-muted);
+      }
+
+      .is-hidden {
+        display: none !important;
+      }
+
+      kbd {
+        background: var(--surface-hover);
+        border: 1px solid var(--border);
+        border-bottom-width: 2px;
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-family: ui-monospace, monospace;
         font-size: 0.85em;
-        animation: slideIn 0.3s ease;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        word-break: break-word;
       }
 
-      .toast.success {
-        background: #2e7d32;
-      }
-      .toast.error {
-        background: #c62828;
-      }
-      .toast.info {
-        background: #1565c0;
-      }
-      .toast.warning {
-        background: #f57c00;
+      code {
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-family: ui-monospace, monospace;
+        font-size: 0.85em;
       }
 
-      @keyframes slideIn {
-        from {
-          transform: translateX(100%);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
-      }
-
-      .header {
-        padding: 12px 15px;
-        background: #1a1a1a;
-        color: white;
-        display: flex;
-        gap: 12px;
+      /* -------------------------------------------------------------- buttons */
+      .btn {
+        display: inline-flex;
         align-items: center;
-        flex-wrap: wrap;
-        min-height: 60px;
-        z-index: 100;
+        justify-content: center;
+        gap: 7px;
+        padding: 7px 13px;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        color: var(--text);
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          opacity 0.15s;
       }
-      .header h1 {
-        font-size: 1.1em;
+
+      .btn:hover:not(:disabled) {
+        background: var(--surface-hover);
+        border-color: var(--border-strong);
+      }
+
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .btn--primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .btn--primary:hover:not(:disabled) {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+      }
+
+      .btn--danger {
+        background: var(--danger);
+        border-color: var(--danger);
+        color: #fff;
+      }
+      .btn--danger:hover:not(:disabled) {
+        background: var(--danger-hover);
+        border-color: var(--danger-hover);
+      }
+
+      .btn--ghost {
+        background: transparent;
+      }
+
+      .btn--block {
+        width: 100%;
+      }
+
+      /* --------------------------------------------------------------- topbar */
+      .topbar {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        min-height: var(--topbar-height);
+        padding: 8px 16px;
+        background: var(--bg-elev);
+        border-bottom: 1px solid var(--border);
+        z-index: 20;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         margin-right: auto;
       }
-      .header label {
-        font-size: 0.8em;
-      }
-      .header input {
-        width: 65px;
-        padding: 5px;
-        border: 1px solid #444;
-        background: #333;
-        color: white;
-        border-radius: 4px;
-        font-size: 0.85em;
-      }
-      .header button {
-        padding: 6px 12px;
-        cursor: pointer;
-        background: #4caf50;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        font-size: 0.85em;
-      }
-      .header button.secondary {
-        background: #666;
-      }
-      .header button:disabled {
-        background: #444;
-        cursor: not-allowed;
-        opacity: 0.6;
-      }
-      .header button:hover:not(:disabled) {
-        opacity: 0.9;
+
+      .brand__mark {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 15px;
       }
 
-      .main {
+      .brand h1 {
+        font-size: 0.98rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+
+      .field-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 10px;
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+      }
+
+      .field-group__label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+
+      .field {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+      }
+
+      .field input {
+        width: 62px;
+        padding: 4px 6px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        font-family: ui-monospace, monospace;
+        font-size: 0.8rem;
+        text-align: right;
+      }
+
+      .field input:focus {
+        border-color: var(--accent);
+      }
+
+      /* ------------------------------------------------------------ workspace */
+      .workspace {
         flex: 1;
         display: flex;
+        min-height: 0;
+      }
+
+      .stage {
         position: relative;
-        overflow: hidden;
-        background: #0a0a0a;
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        background:
+          radial-gradient(
+            ellipse at 50% 0%,
+            rgba(61, 125, 255, 0.05),
+            transparent 60%
+          ),
+          var(--bg-sunken);
       }
 
       .image-container {
+        position: relative; /* crop layer + offsetLeft are measured against this */
         flex: 1;
-        position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: auto;
+        min-width: 0;
       }
 
       #liveImage {
+        display: block;
+        flex-shrink: 0;
         max-width: 100%;
         max-height: 100%;
         object-fit: contain;
         user-select: none;
         -webkit-user-drag: none;
-        display: block;
-        flex-shrink: 0;
+        border-radius: 4px;
+        box-shadow: var(--shadow);
+        background: #000;
       }
 
-      /* Crop layer positioned exactly over the image */
+      /* Crop overlay sits over the image, inside the scroll container */
       .crop-layer {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        inset: 0;
         pointer-events: none;
       }
 
       .selection-box {
         position: absolute;
-        border: 2px solid #00ff00;
-        background: rgba(0, 255, 0, 0.1);
+        display: none;
+        border: 2px solid var(--crop);
+        background: rgba(47, 224, 138, 0.12);
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.55),
+          inset 0 0 0 1px rgba(0, 0, 0, 0.25);
         pointer-events: auto;
         cursor: move;
-        display: none;
-        box-sizing: border-box;
       }
 
       .selection-box.active {
@@ -165,13 +328,11 @@
         cursor: grabbing;
       }
 
-      /* Handles */
       .handle {
         position: absolute;
-        width: 12px;
-        height: 12px;
-        background: #00ff00;
-        border: 2px solid white;
+        background: var(--crop);
+        border: 1.5px solid rgba(0, 0, 0, 0.6);
+        border-radius: 3px;
         pointer-events: auto;
       }
 
@@ -195,153 +356,331 @@
         right: -6px;
         cursor: se-resize;
       }
-
-      .handle.n {
-        top: -6px;
+      .handle.n,
+      .handle.s {
         left: 50%;
         transform: translateX(-50%);
+        width: 22px;
+        height: 9px;
+      }
+      .handle.n {
+        top: -5px;
         cursor: n-resize;
-        width: 20px;
-        height: 10px;
       }
       .handle.s {
-        bottom: -6px;
-        left: 50%;
-        transform: translateX(-50%);
+        bottom: -5px;
         cursor: s-resize;
-        width: 20px;
-        height: 10px;
+      }
+      .handle.w,
+      .handle.e {
+        top: 50%;
+        transform: translateY(-50%);
+        width: 9px;
+        height: 22px;
       }
       .handle.w {
-        left: -6px;
-        top: 50%;
-        transform: translateY(-50%);
+        left: -5px;
         cursor: w-resize;
-        width: 10px;
-        height: 20px;
       }
       .handle.e {
-        right: -6px;
-        top: 50%;
-        transform: translateY(-50%);
+        right: -5px;
         cursor: e-resize;
-        width: 10px;
-        height: 20px;
       }
 
-      /* Floating zoom controls - bottom right of viewport */
-      .zoom-controls {
-        position: fixed;
-        bottom: 15px;
-        right: 335px; /* sidebar width + margin */
+      /* Floating zoom controls, pinned inside the stage (never under the sidebar) */
+      .stage-toolbar {
+        position: absolute;
+        left: 16px;
+        bottom: 16px;
         display: flex;
-        gap: 5px;
-        z-index: 50;
-        background: rgba(0, 0, 0, 0.8);
-        padding: 6px;
-        border-radius: 6px;
+        align-items: center;
+        gap: 4px;
+        padding: 5px;
+        background: rgba(20, 24, 33, 0.9);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(8px);
+        z-index: 10;
       }
 
-      .zoom-controls button {
-        padding: 6px 10px;
-        font-size: 0.75em;
-        background: #444;
-        color: white;
+      .zoom-btn {
+        padding: 5px 10px;
         border: none;
-        border-radius: 4px;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 0.78rem;
+        font-variant-numeric: tabular-nums;
         cursor: pointer;
       }
 
-      .zoom-controls button:hover {
-        background: #555;
+      .zoom-btn:hover {
+        background: var(--surface-hover);
+        color: var(--text);
       }
 
+      .zoom-btn.is-active {
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .stage-toolbar__divider {
+        width: 1px;
+        height: 18px;
+        margin: 0 4px;
+        background: var(--border);
+      }
+
+      .stage-hint {
+        position: absolute;
+        right: 16px;
+        bottom: 16px;
+        padding: 5px 10px;
+        border-radius: var(--radius-pill);
+        background: rgba(20, 24, 33, 0.9);
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        font-size: 0.75rem;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      /* -------------------------------------------------------------- sidebar */
       .sidebar {
-        width: 320px;
-        background: #1a1a1a;
-        color: white;
-        padding: 15px;
-        overflow-y: auto;
-        border-left: 1px solid #333;
         flex-shrink: 0;
-      }
-
-      .sidebar h2 {
-        font-size: 0.95em;
-        margin-bottom: 12px;
-        color: #4caf50;
-      }
-      .sidebar h3 {
-        font-size: 0.85em;
-        margin: 15px 0 8px;
-        color: #aaa;
-      }
-
-      .status {
-        padding: 10px;
-        border-radius: 4px;
-        margin: 8px 0;
-        font-size: 0.85em;
-      }
-      .status.locked {
-        background: #c62828;
-      }
-      .status.unlocked {
-        background: #2e7d32;
-      }
-      .status.unknown {
-        background: #666;
-      }
-      .status.unconfigured {
-        background: #f57c00;
-      }
-
-      .ref-section {
-        margin: 15px 0;
-        padding: 12px;
-        background: #222;
-        border-radius: 6px;
-      }
-
-      .ref-section h4 {
-        font-size: 0.8em;
-        color: #ccc;
-        margin-bottom: 10px;
+        width: var(--sidebar-width);
+        padding: 14px;
+        overflow-y: auto;
+        background: var(--bg-elev);
+        border-left: 1px solid var(--border);
         display: flex;
-        justify-content: space-between;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 13px;
+      }
+
+      .panel__header {
+        display: flex;
         align-items: center;
         flex-wrap: wrap;
         gap: 8px;
+        margin-bottom: 10px;
       }
 
-      .ref-header-left {
+      .panel__header .panel__title {
+        margin-bottom: 0;
+      }
+
+      .panel__actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+      }
+
+      .panel__title {
         display: flex;
         align-items: center;
         gap: 8px;
+        margin-bottom: 10px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        color: var(--text-dim);
       }
 
-      /* Fixed aspect ratio grid */
+      .panel__title .count {
+        padding: 1px 8px;
+        border-radius: var(--radius-pill);
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
+        font-size: 0.68rem;
+        letter-spacing: 0;
+        color: var(--text-muted);
+      }
+
+      /* Status card: tinted background, coloured rail, no more solid blocks */
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: var(--bg-sunken);
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+
+      .status::before {
+        content: "";
+        flex-shrink: 0;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--text-dim);
+      }
+
+      .status.locked {
+        background: var(--danger-soft);
+        border-color: rgba(239, 68, 68, 0.35);
+        color: #fecaca;
+      }
+      .status.locked::before {
+        background: var(--danger);
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.16);
+      }
+
+      .status.unlocked {
+        background: var(--success-soft);
+        border-color: rgba(34, 197, 94, 0.35);
+        color: #bbf7d0;
+      }
+      .status.unlocked::before {
+        background: var(--success);
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.16);
+      }
+
+      .status.unconfigured {
+        background: var(--warning-soft);
+        border-color: rgba(245, 158, 11, 0.35);
+        color: #fde68a;
+      }
+      .status.unconfigured::before {
+        background: var(--warning);
+        box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.16);
+      }
+
+      .status.unknown {
+        color: var(--text-muted);
+      }
+
+      #detectionStatus + .btn {
+        margin-top: 10px;
+      }
+
+      /* ----------------------------------------------------------- crop info */
+      .crop-readout {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: ui-monospace, monospace;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        word-break: break-all;
+      }
+
+      .crop-readout.is-set {
+        color: var(--crop);
+      }
+
+      .subsection {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+      }
+
+      .subsection__title {
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 9px;
+      }
+
+      .slider-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      input[type="range"] {
+        flex: 1;
+        min-width: 0;
+        height: 4px;
+        border-radius: var(--radius-pill);
+        background: var(--border);
+        appearance: none;
+        cursor: pointer;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: var(--accent);
+        border: 2px solid var(--bg-elev);
+        cursor: pointer;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: var(--accent);
+        border: 2px solid var(--bg-elev);
+        cursor: pointer;
+      }
+
+      .slider-row__value {
+        font-family: ui-monospace, monospace;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+
+      .button-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      .button-row .btn {
+        flex: 1;
+      }
+
+      /* --------------------------------------------------------- references */
       .ref-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
-        margin: 10px 0;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+      }
+
+      .ref-grid-wrapper.collapsed .ref-item:nth-child(n + 3) {
+        display: none;
       }
 
       .ref-item {
         position: relative;
-        aspect-ratio: 4/3;
-        border-radius: 4px;
+        aspect-ratio: 4 / 3;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
         overflow: hidden;
-        border: 2px solid #333;
-        background: #1a1a1a;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        background: var(--bg-sunken);
+        display: grid;
+        place-items: center;
+        transition: border-color 0.15s;
       }
 
-      .ref-item.active {
-        border-color: #4caf50;
+      .ref-item:hover {
+        border-color: var(--border-strong);
+      }
+
+      .ref-item.has-selection {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
       }
 
       .ref-item img {
@@ -351,150 +690,192 @@
         display: block;
       }
 
-      .ref-item .ref-delete {
+      .ref-checkbox {
         position: absolute;
-        top: 4px;
-        right: 4px;
-        width: 22px;
-        height: 22px;
-        background: #c62828;
-        color: white;
-        border: none;
-        border-radius: 3px;
+        top: 6px;
+        left: 6px;
+        width: 17px;
+        height: 17px;
+        margin: 0;
+        appearance: none;
+        border: 1.5px solid rgba(255, 255, 255, 0.6);
+        border-radius: 4px;
+        background: rgba(9, 11, 16, 0.55);
         cursor: pointer;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+      }
+
+      .ref-checkbox:hover {
+        border-color: #fff;
+      }
+
+      .ref-checkbox:checked {
+        border-color: var(--accent);
+        background: var(--accent)
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-6'/%3E%3C/svg%3E")
+          center / 12px no-repeat;
+      }
+
+      .ref-delete {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 21px;
+        height: 21px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border: none;
+        border-radius: 5px;
+        background: rgba(15, 18, 25, 0.8);
+        color: var(--text-muted);
+        font-size: 15px;
         line-height: 1;
+        cursor: pointer;
+        opacity: 0;
+        transition:
+          opacity 0.15s,
+          background 0.15s,
+          color 0.15s;
       }
 
-      .ref-item .ref-delete:hover {
-        background: #d32f2f;
+      .ref-item:hover .ref-delete,
+      .ref-delete:focus-visible {
+        opacity: 1;
       }
 
-      .ref-grid-wrapper {
-        transition: max-height 0.25s ease;
+      /* No hover on touch: keep the delete affordance permanently visible. */
+      @media (hover: none) {
+        .ref-delete {
+          opacity: 1;
+        }
       }
 
-      .ref-grid-wrapper.collapsed .ref-item:nth-child(n + 3) {
-        display: none;
-      }
-
-      .ref-grid-wrapper.collapsed {
-        max-height: none !important; /* Let the grid define the height */
-        overflow: visible !important;
-      }
-
-      .ref-header-actions {
-        display: flex;
-        gap: 8px;
-        align-items: center;
+      .ref-delete:hover {
+        background: var(--danger);
+        color: #fff;
       }
 
       .ref-toggle {
+        padding: 2px 8px;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-pill);
         background: transparent;
-        border: 1px solid #444;
-        color: #ccc;
-        padding: 4px 8px;
-        border-radius: 4px;
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        letter-spacing: normal;
+        text-transform: none;
         cursor: pointer;
-        font-size: 0.75em;
       }
 
-      .ref-count {
-        color: #888;
-        font-weight: normal;
+      .ref-toggle:hover {
+        color: var(--text);
+        background: var(--surface-hover);
+      }
+
+      .ref-delete-all {
+        padding: 2px 9px;
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        border-radius: var(--radius-pill);
+        background: var(--danger-soft);
+        color: var(--danger-hover);
+        font-size: 0.7rem;
+        letter-spacing: normal;
+        text-transform: none;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .ref-delete-all:hover:not(:disabled) {
+        background: var(--danger);
+        border-color: var(--danger);
+        color: #fff;
+      }
+
+      .ref-delete-all:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
       }
 
       .ref-actions {
         display: flex;
         gap: 8px;
-        margin-top: 8px;
+        margin-top: 11px;
       }
 
-      .ref-actions button {
+      .ref-actions .btn {
         flex: 1;
-        padding: 8px;
-        font-size: 0.75em;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-
-      .btn-capture {
-        background: #2196f3;
-        color: white;
-      }
-      .btn-capture:hover {
-        background: #1976d2;
-      }
-
-      .btn-upload {
-        background: #666;
-        color: white;
-      }
-      .btn-upload:hover {
-        background: #555;
-      }
-
-      .test-section {
-        margin-top: 20px;
-        padding-top: 15px;
-        border-top: 1px solid #444;
-      }
-
-      .test-section button {
-        width: 100%;
-        padding: 12px;
-        background: #9c27b0;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.9em;
-      }
-
-      .test-section button:hover:not(:disabled) {
-        background: #7b1fa2;
-      }
-
-      .test-section button:disabled {
-        background: #444;
-        cursor: not-allowed;
-        opacity: 0.6;
-      }
-
-      .help {
-        color: #888;
-        font-size: 0.75em;
-        line-height: 1.4;
-        margin: 12px 0;
-      }
-
-      .help kbd {
-        background: #333;
-        padding: 2px 5px;
-        border-radius: 3px;
-        font-family: monospace;
       }
 
       input[type="file"] {
         display: none;
       }
 
-      /* Confirmation modal */
+      .empty-note {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        margin-bottom: 9px;
+      }
+
+      /* --------------------------------------------------------------- help */
+      .help {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      .help summary {
+        padding: 11px 13px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .help summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .help summary::after {
+        content: "▾";
+        float: right;
+        transition: transform 0.15s;
+      }
+
+      .help[open] summary::after {
+        transform: rotate(180deg);
+      }
+
+      .help summary:hover {
+        color: var(--text);
+      }
+
+      .help ul {
+        margin: 0;
+        padding: 0 13px 12px 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      /* --------------------------------------------------------------- modal */
       .modal-overlay {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.7);
+        inset: 0;
         display: none;
         align-items: center;
         justify-content: center;
-        z-index: 2000;
+        padding: 24px;
+        background: rgba(5, 7, 10, 0.66);
+        backdrop-filter: blur(3px);
+        z-index: 1000;
       }
 
       .modal-overlay.active {
@@ -502,421 +883,459 @@
       }
 
       .modal {
-        background: #1a1a1a;
-        padding: 20px;
-        border-radius: 8px;
-        max-width: 400px;
-        color: white;
-      }
-
-      .modal h3 {
-        margin-bottom: 15px;
-        font-size: 1em;
-      }
-
-      .modal p {
-        margin-bottom: 20px;
-        color: #aaa;
-        font-size: 0.9em;
-      }
-
-      .modal-buttons {
         display: flex;
-        gap: 10px;
+        flex-direction: column;
+        width: 100%;
+        max-width: 440px;
+        max-height: 100%;
+        background: var(--bg-elev);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        animation: pop 0.15s ease-out;
+      }
+
+      .modal--wide {
+        max-width: 900px;
+      }
+
+      @keyframes pop {
+        from {
+          opacity: 0;
+          transform: translateY(6px) scale(0.99);
+        }
+      }
+
+      .modal__header {
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .modal__header h3 {
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      .modal__header p {
+        margin-top: 5px;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      .modal__body {
+        padding: 6px 18px;
+        overflow-y: auto;
+      }
+
+      .modal__footer {
+        display: flex;
         justify-content: flex-end;
+        gap: 9px;
+        padding: 14px 18px;
+        border-top: 1px solid var(--border);
       }
 
-      .modal button {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.85em;
-      }
-
-      .modal .btn-cancel {
-        background: #666;
-        color: white;
-      }
-
-      .modal .btn-confirm {
-        background: #c62828;
-        color: white;
-      }
-
-      .config-list {
-        font-size: 1em;
-      }
+      /* ---------------------------------------------------------- config rows */
       .config-list h4 {
-        margin: 18px 0 6px;
-        font-size: 0.85em;
-        color: #4caf50;
+        margin: 22px 0 2px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.07em;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
+        color: var(--accent);
       }
-      .config-list .config-row {
+
+      .config-list h4:first-child {
+        margin-top: 8px;
+      }
+
+      .config-row {
         display: flex;
-        justify-content: space-between;
         align-items: center;
         gap: 12px;
-        padding: 8px 0;
-        border-bottom: 1px solid #333;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border);
       }
-      .config-list .config-key {
-        color: #888;
-        font-weight: bold;
-        min-width: 170px;
+
+      .config-row:last-child {
+        border-bottom: none;
       }
-      .config-list .config-env-value {
-        color: #666;
-        font-family: monospace;
-        font-size: 0.85em;
-        max-width: 260px;
+
+      .config-key {
+        flex: 0 0 150px;
+        font-family: ui-monospace, monospace;
+        font-size: 0.82rem;
+        color: var(--text);
+      }
+
+      .config-env-value {
+        flex: 1;
+        min-width: 0;
+        font-family: ui-monospace, monospace;
+        font-size: 0.78rem;
+        color: var(--text-dim);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .config-list .config-value {
-        color: #ccc;
-        font-family: monospace;
-        font-size: 0.9em;
-        max-width: 420px;
+
+      .config-value {
+        flex: 1;
+        min-width: 0;
+        font-family: ui-monospace, monospace;
+        font-size: 0.82rem;
+        color: var(--text-muted);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+
       .config-tunable {
         display: flex;
         align-items: center;
         gap: 10px;
       }
-      .config-list .config-input {
-        background: #222;
-        border: 1px solid #444;
-        color: #fff;
-        padding: 6px 10px;
-        border-radius: 4px;
-        font-family: monospace;
-        width: 130px;
-        font-size: 0.85em;
+
+      .config-input {
+        width: 118px;
+        padding: 5px 9px;
+        background: var(--bg-sunken);
+        border: 1px solid var(--border-strong);
+        border-radius: 6px;
+        font-family: ui-monospace, monospace;
+        font-size: 0.82rem;
       }
-      .config-list .config-input:disabled {
+
+      .config-input:disabled {
         opacity: 0.4;
       }
-      .config-list .config-effective {
-        color: #4caf50;
-        font-family: monospace;
-        font-size: 0.85em;
-        min-width: 70px;
+
+      .config-input:focus {
+        border-color: var(--accent);
       }
+
+      .config-effective {
+        min-width: 78px;
+        font-family: ui-monospace, monospace;
+        font-size: 0.8rem;
+        color: var(--success);
+        text-align: right;
+      }
+
       .config-toggle {
         display: flex;
         align-items: center;
         gap: 6px;
-        margin-right: 4px;
+        cursor: pointer;
       }
-      .config-toggle input[type="checkbox"] {
-        width: 16px;
-        height: 16px;
-        accent-color: #4caf50;
+
+      .config-toggle input {
+        width: 15px;
+        height: 15px;
+        margin: 0;
+        accent-color: var(--accent);
+        cursor: pointer;
       }
+
       .config-toggle span {
-        font-size: 0.75em;
-        color: #888;
+        font-size: 0.72rem;
+        color: var(--text-dim);
       }
 
-      .crop-history {
-        margin-top: 15px;
-        padding-top: 15px;
-        border-top: 1px solid #444;
-      }
-      .crop-history h3 {
-        font-size: 0.85em;
-        margin: 0 0 10px;
-        color: #aaa;
-      }
-      .history-slider-container {
+      /* -------------------------------------------------------------- toasts */
+      /* Bottom-centre of the viewport: bottom-right would sit on top of the
+         sidebar's Capture/Upload buttons. */
+      .toast-container {
+        position: fixed;
+        left: 50%;
+        bottom: 16px;
+        transform: translateX(-50%);
         display: flex;
+        flex-direction: column-reverse;
         align-items: center;
-        gap: 10px;
-        margin-bottom: 8px;
-      }
-      .history-slider {
-        flex: 1;
-        width: 100%;
-      }
-      .history-info {
-        font-size: 0.85em;
-        color: #888;
-        min-width: 60px;
-        text-align: center;
-      }
-      .history-actions {
-        display: flex;
         gap: 8px;
-      }
-      .history-save, .history-delete {
-        flex: 1;
-        padding: 8px;
-        font-size: 0.85em;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-      .history-save {
-        background: #4caf50;
-        color: white;
-      }
-      .history-delete {
-        background: #c62828;
-        color: white;
-      }
-      .history-save:hover {
-        background: #388e3c;
-      }
-      .history-delete:hover {
-        background: #d32f2f;
-      }
-      .history-delete:disabled {
-        background: #444;
-        cursor: not-allowed;
-        opacity: 0.5;
+        width: min(420px, calc(100vw - 32px));
+        pointer-events: none;
+        z-index: 1100;
       }
 
-      .ref-item .ref-checkbox {
-        position: absolute;
-        top: 4px;
-        left: 4px;
-        width: 20px;
-        height: 20px;
-        accent-color: #4caf50;
+      .toast {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        width: 100%;
+        padding: 11px 14px;
+        border: 1px solid var(--border-strong);
+        border-left: 3px solid var(--info);
+        border-radius: var(--radius-sm);
+        background: var(--bg-elev);
+        color: var(--text);
+        font-size: 0.83rem;
+        box-shadow: var(--shadow);
         cursor: pointer;
+        pointer-events: auto;
+        animation: toast-in 0.2s ease-out;
+        word-break: break-word;
       }
 
-      .ref-delete-all {
-        background: #c62828;
-        color: white;
-        border: none;
-        padding: 4px 8px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.75em;
-        margin-left: auto;
+      .toast::before {
+        content: "•";
+        color: var(--info);
+        font-size: 1.2em;
+        line-height: 1;
       }
-      .ref-delete-all:hover {
-        background: #d32f2f;
+
+      .toast.success {
+        border-left-color: var(--success);
       }
-      .ref-delete-all:disabled {
-        background: #444;
-        cursor: not-allowed;
-        opacity: 0.5;
+      .toast.success::before {
+        color: var(--success);
+      }
+
+      .toast.error {
+        border-left-color: var(--danger);
+      }
+      .toast.error::before {
+        color: var(--danger);
+      }
+
+      .toast.warning {
+        border-left-color: var(--warning);
+      }
+      .toast.warning::before {
+        color: var(--warning);
+      }
+
+@keyframes toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+      }
+
+      /* ---------------------------------------------------------- responsive */
+      @media (max-width: 1000px) {
+        .workspace {
+          flex-direction: column;
+        }
+        .sidebar {
+          width: 100%;
+          max-height: 52%;
+          border-left: none;
+          border-top: 1px solid var(--border);
+        }
+        .stage {
+          min-height: 45%;
+        }
+        .ref-grid {
+          grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        }
+      }
+
+      @media (max-width: 720px) {
+        .field-group {
+          order: 3;
+          width: 100%;
+          justify-content: space-between;
+        }
+        .field input {
+          width: 52px;
+        }
+        .config-key {
+          flex-basis: 108px;
+        }
+        .config-env-value {
+          display: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
       }
     </style>
   </head>
   <body>
-    <!-- Toast container - bottom right -->
     <div class="toast-container" id="toastContainer"></div>
 
     <!-- Confirmation modal -->
-    <div class="modal-overlay" id="confirmModal">
+    <div class="modal-overlay" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal">
-        <h3 id="modalTitle">Confirm Delete</h3>
-        <p id="modalMessage">Are you sure?</p>
-        <div class="modal-buttons">
-          <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-          <button
-            class="btn-confirm"
-            id="modalConfirm"
-            onclick="confirmAction()"
-          >
-            Delete
-          </button>
+        <div class="modal__header">
+          <h3 id="modalTitle">Confirm delete</h3>
+          <p id="modalMessage">Are you sure?</p>
+        </div>
+        <div class="modal__footer">
+          <button class="btn" id="modalCancel">Cancel</button>
+          <button class="btn btn--danger" id="modalConfirm">Delete</button>
         </div>
       </div>
     </div>
 
     <!-- Config modal -->
-    <div class="modal-overlay" id="configModal">
-      <div class="modal" style="width: 75vw; max-width: 1200px; max-height: 85vh; display: block; overflow: hidden;">
-        <div style="padding-bottom: 15px; border-bottom: 1px solid #333; margin-bottom: 15px;">
-          <h3 style="font-size: 1.4em;">Configuration</h3>
-          <p style="font-size: 0.9em; color: #888; margin-top: 5px;">Overrides are applied to the running detector and saved to <code>config_dir/overrides.json</code>. Uncheck to fall back to the env var.</p>
+    <div class="modal-overlay" id="configModal" role="dialog" aria-modal="true" aria-labelledby="configModalTitle">
+      <div class="modal modal--wide">
+        <div class="modal__header">
+          <h3 id="configModalTitle">Configuration</h3>
+          <p>
+            Overrides apply to the running detector and are saved to
+            <code id="configPath">config/overrides.json</code>. Untick
+            <em>Override</em> to fall back to the env var.
+          </p>
         </div>
-        <div id="configContent" class="config-list" style="max-height: calc(85vh - 150px); overflow-y: auto;"></div>
-        <div class="modal-buttons">
-          <button class="btn-cancel" onclick="saveConfig()" style="background: #4caf50; font-size: 1em; padding: 10px 20px;">Save</button>
-          <button class="btn-cancel" onclick="closeConfigModal()" style="font-size: 1em; padding: 10px 20px;">Close</button>
+        <div class="modal__body" id="configContent"></div>
+        <div class="modal__footer">
+          <button class="btn" id="configCloseBtn">Close</button>
+          <button class="btn btn--primary" id="configSaveBtn">Save</button>
         </div>
       </div>
     </div>
 
-    <div class="header">
-      <h1>Deadbolt Detector</h1>
-      <label>X1: <input type="number" id="x1" placeholder="0" /></label>
-      <label>Y1: <input type="number" id="y1" placeholder="0" /></label>
-      <label>X2: <input type="number" id="x2" placeholder="0" /></label>
-      <label>Y2: <input type="number" id="y2" placeholder="0" /></label>
-      <button onclick="saveCrop()">Save Crop</button>
-      <button class="secondary" onclick="clearCurrentSelection()">
-        Clear current selection
-      </button>
-      <button class="secondary" onclick="showConfigModal()">Config</button>
-    </div>
-
-    <div class="main">
-      <div class="image-container" id="imageContainer">
-        <img id="liveImage" src="" alt="Live feed" draggable="false" />
-
-        <div class="crop-layer" id="cropLayer">
-          <div class="selection-box" id="selectionBox">
-            <div class="handle nw" data-handle="nw"></div>
-            <div class="handle n" data-handle="n"></div>
-            <div class="handle ne" data-handle="ne"></div>
-            <div class="handle w" data-handle="w"></div>
-            <div class="handle e" data-handle="e"></div>
-            <div class="handle sw" data-handle="sw"></div>
-            <div class="handle s" data-handle="s"></div>
-            <div class="handle se" data-handle="se"></div>
-          </div>
-        </div>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">🔒</span>
+        <h1>Deadbolt Detector</h1>
       </div>
 
-      <div class="sidebar">
-        <h2>Detection Status</h2>
-        <div id="detectionStatus" class="status unknown">Loading...</div>
+      <div class="field-group">
+        <span class="field-group__label" id="cropFieldsLabel">Crop</span>
+        <label class="field">X1 <input type="number" id="x1" placeholder="0" /></label>
+        <label class="field">Y1 <input type="number" id="y1" placeholder="0" /></label>
+        <label class="field">X2 <input type="number" id="x2" placeholder="0" /></label>
+        <label class="field">Y2 <input type="number" id="y2" placeholder="0" /></label>
+      </div>
 
-        <div class="test-section">
-          <button onclick="testDetection()" id="btnTest" disabled>
-            Test Detection
-          </button>
-        </div>
+      <button class="btn btn--primary" id="saveCropBtn">Save crop</button>
+      <button class="btn" id="clearSelectionBtn">Reset</button>
+      <button class="btn btn--ghost" id="configBtn">Config</button>
+    </header>
 
-        <h3>Current Crop</h3>
-        <div id="currentCrop" class="help">No crop set</div>
+    <main class="workspace">
+      <section class="stage">
+        <div class="image-container" id="imageContainer">
+          <img id="liveImage" src="" alt="Live camera feed" draggable="false" />
 
-        <div class="crop-history" id="cropHistory">
-          <h3>Crop History</h3>
-          <div class="history-empty" id="historyEmpty" style="display: none;">
-            <p style="font-size: 0.8em; color: #666; margin-bottom: 10px;">No saved crops yet. Set a crop and click Save to add it.</p>
-          </div>
-          <div class="history-slider-container" id="historySliderContainer" style="display: none;">
-            <input type="range" id="cropHistorySlider" class="history-slider" min="0" max="0" value="0" oninput="loadCropHistory(this.value)">
-            <div class="history-info">
-              <span id="cropHistoryIndex">0</span> / <span id="cropHistoryCount">0</span>
+          <div class="crop-layer" id="cropLayer">
+            <div class="selection-box" id="selectionBox">
+              <div class="handle nw" data-handle="nw"></div>
+              <div class="handle n" data-handle="n"></div>
+              <div class="handle ne" data-handle="ne"></div>
+              <div class="handle w" data-handle="w"></div>
+              <div class="handle e" data-handle="e"></div>
+              <div class="handle sw" data-handle="sw"></div>
+              <div class="handle s" data-handle="s"></div>
+              <div class="handle se" data-handle="se"></div>
             </div>
           </div>
-          <div class="history-actions">
-            <button onclick="saveToHistory()" class="history-save" title="Save current crop to history">Save Current</button>
-            <button onclick="deleteHistoryItem()" id="historyDeleteBtn" class="history-delete" title="Delete current history item" disabled>Delete</button>
-          </div>
         </div>
 
-        <div class="ref-section">
-          <h4>
-            <div class="ref-header-left">
-              Reference: LOCKED
-              <span class="ref-count" id="lockedCount">(0)</span>
-              <button
-                class="ref-toggle"
-                id="lockedToggle"
-                onclick="toggleRefCollapse('locked')"
-                style="display: none"
-              >
-                Show more
-              </button>
+        <div class="stage-toolbar" id="zoomToolbar">
+          <button class="zoom-btn" data-zoom="0.5">0.5×</button>
+          <button class="zoom-btn" data-zoom="1">1×</button>
+          <button class="zoom-btn" data-zoom="1.5">1.5×</button>
+          <button class="zoom-btn" data-zoom="2">2×</button>
+          <button class="zoom-btn" data-zoom="3">3×</button>
+          <span class="stage-toolbar__divider"></span>
+          <button class="zoom-btn" data-zoom="fit">Fit</button>
+        </div>
+
+        <div class="stage-hint" id="stageHint">Drag on the image to set the crop</div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="panel">
+          <h2 class="panel__title">Detection status</h2>
+          <div id="detectionStatus" class="status unknown">Loading…</div>
+          <button class="btn btn--block" id="btnTest" disabled>Test detection</button>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel__title">Crop region</h2>
+          <div class="crop-readout" id="currentCrop">No crop set</div>
+
+          <div class="subsection" id="cropHistory">
+            <h3 class="subsection__title">Crop history</h3>
+            <p class="empty-note" id="historyEmpty">
+              No saved crops yet. Set a crop and click <em>Save current</em>.
+            </p>
+            <div class="slider-row is-hidden" id="historySliderContainer">
+              <input
+                type="range"
+                id="cropHistorySlider"
+                min="0"
+                max="0"
+                value="0"
+                aria-label="Browse saved crops"
+              />
+              <span class="slider-row__value">
+                <span id="cropHistoryIndex">0</span>&hairsp;/&hairsp;<span id="cropHistoryCount">0</span>
+              </span>
             </div>
-            <button
-              class="ref-delete-all"
-              id="lockedDeleteBtn"
-              onclick="deleteSelected('locked')"
-              disabled
-            >
-              Delete Selected (0)
-            </button>
-          </h4>
+            <div class="button-row">
+              <button class="btn" id="saveHistoryBtn">Save current</button>
+              <button class="btn btn--ghost" id="historyDeleteBtn" disabled>Delete</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel__header">
+            <h2 class="panel__title">
+              Locked
+              <span class="count" id="lockedCount" title="Locked references">0</span>
+            </h2>
+            <div class="panel__actions">
+              <button class="ref-toggle is-hidden" id="lockedToggle" title="Show all references">Show all</button>
+              <button class="ref-delete-all is-hidden" id="lockedDeleteBtn">Delete</button>
+            </div>
+          </div>
           <div class="ref-grid-wrapper collapsed" id="lockedGridWrapper">
             <div class="ref-grid" id="lockedGrid"></div>
           </div>
+          <p class="empty-note is-hidden" id="lockedEmpty">No locked references yet.</p>
           <div class="ref-actions">
-            <button class="btn-capture" onclick="captureReference('locked')">
-              Capture
-            </button>
-            <button class="btn-upload" onclick="uploadReference('locked')">
-              Upload
-            </button>
+            <button class="btn btn--primary" id="captureLockedBtn">Capture</button>
+            <button class="btn" id="uploadLockedBtn">Upload</button>
           </div>
-          <input
-            type="file"
-            id="fileLocked"
-            accept="image/*"
-            onchange="handleUpload('locked', this)"
-          />
-        </div>
+          <input type="file" id="fileLocked" accept="image/*" />
+        </section>
 
-        <div class="ref-section">
-          <h4>
-            <div class="ref-header-left">
-              Reference: UNLOCKED
-              <span class="ref-count" id="unlockedCount">(0)</span>
-              <button
-                class="ref-toggle"
-                id="unlockedToggle"
-                onclick="toggleRefCollapse('unlocked')"
-                style="display: none"
-              >
-                Show more
-              </button>
+        <section class="panel">
+          <div class="panel__header">
+            <h2 class="panel__title">
+              Unlocked
+              <span class="count" id="unlockedCount" title="Unlocked references">0</span>
+            </h2>
+            <div class="panel__actions">
+              <button class="ref-toggle is-hidden" id="unlockedToggle" title="Show all references">Show all</button>
+              <button class="ref-delete-all is-hidden" id="unlockedDeleteBtn">Delete</button>
             </div>
-            <button
-              class="ref-delete-all"
-              id="unlockedDeleteBtn"
-              onclick="deleteSelected('unlocked')"
-              disabled
-            >
-              Delete Selected (0)
-            </button>
-          </h4>
+          </div>
           <div class="ref-grid-wrapper collapsed" id="unlockedGridWrapper">
             <div class="ref-grid" id="unlockedGrid"></div>
           </div>
+          <p class="empty-note is-hidden" id="unlockedEmpty">No unlocked references yet.</p>
           <div class="ref-actions">
-            <button class="btn-capture" onclick="captureReference('unlocked')">
-              Capture
-            </button>
-            <button class="btn-upload" onclick="uploadReference('unlocked')">
-              Upload
-            </button>
+            <button class="btn btn--primary" id="captureUnlockedBtn">Capture</button>
+            <button class="btn" id="uploadUnlockedBtn">Upload</button>
           </div>
-          <input
-            type="file"
-            id="fileUnlocked"
-            accept="image/*"
-            onchange="handleUpload('unlocked', this)"
-          />
-        </div>
+          <input type="file" id="fileUnlocked" accept="image/*" />
+        </section>
 
-        <div class="help">
-          <strong>Controls:</strong><br /><br />
-          • <strong>Click & drag</strong> on image to create crop<br />
-          • <strong>Drag box</strong> to move selection<br />
-          • <strong>Drag handles</strong> to resize<br />
-          • Hold <kbd>Shift</kbd> for square<br />
-          • Use zoom buttons to scale image<br />
-          • Hold <kbd>Command</kbd> (or <kbd>Ctrl</kbd> on Windows) to pan while
-          zoomed
-        </div>
-      </div>
-    </div>
-
-    <!-- Floating zoom controls - bottom right of image area -->
-    <div class="zoom-controls">
-      <button onclick="setZoom(0.5)">0.5x</button>
-      <button onclick="setZoom(1)">1x</button>
-      <button onclick="setZoom(1.5)">1.5x</button>
-      <button onclick="setZoom(2)">2x</button>
-      <button onclick="setZoom(3)">3x</button>
-      <button onclick="resetZoom()">Fit</button>
-    </div>
+        <details class="help">
+          <summary>Controls</summary>
+          <ul>
+            <li><strong>Click &amp; drag</strong> the image to draw a crop</li>
+            <li><strong>Drag</strong> the box to move it, or its handles to resize</li>
+            <li>Hold <kbd>Shift</kbd> while dragging for a square</li>
+            <li>Use the zoom buttons to scale the image</li>
+            <li>Hold <kbd>Cmd</kbd> / <kbd>Ctrl</kbd> and drag to pan when zoomed</li>
+          </ul>
+        </details>
+      </aside>
+    </main>
 
     <script>
       const liveImage = document.getElementById("liveImage");
@@ -924,6 +1343,9 @@
       const selectionBox = document.getElementById("selectionBox");
       const toastContainer = document.getElementById("toastContainer");
       const btnTest = document.getElementById("btnTest");
+      const statusEl = document.getElementById("detectionStatus");
+      const currentCropEl = document.getElementById("currentCrop");
+      const zoomToolbar = document.getElementById("zoomToolbar");
       const inputs = {
         x1: document.getElementById("x1"),
         y1: document.getElementById("y1"),
@@ -931,12 +1353,14 @@
         y2: document.getElementById("y2"),
       };
 
+      const FIT = "fit"; // zoomLevel sentinel meaning "scale to the stage"
+      const STAGE_INSET = 28; // breathing room around a fitted image, in px
+
       let currentCrop = null;
       let savedCrop = null;
       let naturalSize = { width: 0, height: 0 };
-      let displayedRect = null;
       let scale = { x: 1, y: 1 };
-      let zoomLevel = 1;
+      let zoomLevel = FIT;
 
       let isCreating = false;
       let isMoving = false;
@@ -950,27 +1374,29 @@
       let panStart = { x: 0, y: 0 };
       let panScrollStart = { left: 0, top: 0 };
 
-      // Modal state
       let pendingAction = null;
-
-      // Selected files for batch delete
       let selectedFiles = { locked: new Set(), unlocked: new Set() };
+      let currentSettings = [];
+      let cropHistory = [];
+      let currentHistoryIndex = -1;
 
-      // Toast notifications
+      /* ------------------------------------------------------------- toasts */
       function showToast(message, type = "info") {
         const toast = document.createElement("div");
         toast.className = `toast ${type}`;
         toast.textContent = message;
+        toast.title = "Dismiss";
+        toast.addEventListener("click", () => toast.remove());
         toastContainer.appendChild(toast);
-
         setTimeout(() => {
+          toast.style.transition = "opacity .25s, transform .25s";
           toast.style.opacity = "0";
-          toast.style.transform = "translateX(100%)";
-          setTimeout(() => toast.remove(), 300);
+          toast.style.transform = "translateY(10px)";
+          setTimeout(() => toast.remove(), 250);
         }, 4000);
       }
 
-      // Modal functions
+      /* -------------------------------------------------------------- modals */
       function showConfirm(title, message, onConfirm) {
         document.getElementById("modalTitle").textContent = title;
         document.getElementById("modalMessage").textContent = message;
@@ -984,263 +1410,123 @@
       }
 
       function confirmAction() {
-        if (pendingAction) {
-          pendingAction();
-          closeModal();
-        }
-      }
-
-      // Config modal
-      let currentSettings = [];
-
-      function showConfigModal() {
-        fetch('/api/config')
-          .then(r => r.json())
-          .then(data => {
-            renderConfig(data);
-            document.getElementById('configModal').classList.add('active');
-          })
-          .catch(err => showToast('Failed to load config', 'error'));
-      }
-
-      // Build a row out of real DOM nodes so env values can never inject markup.
-      function configRow(keyText, valueText) {
-        const row = document.createElement('div');
-        row.className = 'config-row';
-
-        const key = document.createElement('span');
-        key.className = 'config-key';
-        key.textContent = keyText;
-
-        const value = document.createElement('span');
-        value.className = 'config-value';
-        value.textContent = valueText;
-        value.title = valueText;
-
-        row.append(key, value);
-        return row;
-      }
-
-      function renderConfig(config) {
-        const content = document.getElementById('configContent');
-        content.innerHTML = '';
-        currentSettings = config.settings || [];
-
-        const infoTitle = document.createElement('h4');
-        infoTitle.textContent = 'Connection (env vars — restart to change)';
-        content.appendChild(infoTitle);
-
-        (config.info || []).forEach(item => {
-          content.appendChild(configRow(item.key, item.value));
-        });
-
-        const settingsTitle = document.createElement('h4');
-        settingsTitle.textContent = 'Detection tunables';
-        content.appendChild(settingsTitle);
-
-        currentSettings.forEach(setting => {
-          const row = document.createElement('div');
-          row.className = 'config-row';
-
-          const key = document.createElement('span');
-          key.className = 'config-key';
-          key.textContent = setting.key;
-
-          const env = document.createElement('span');
-          env.className = 'config-env-value';
-          env.textContent = `${setting.env_var}=${setting.env_value}`;
-          env.title = env.textContent;
-
-          const tunable = document.createElement('div');
-          tunable.className = 'config-tunable';
-
-          const hasOverride = setting.override !== null && setting.override !== undefined;
-
-          const toggle = document.createElement('label');
-          toggle.className = 'config-toggle';
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.id = `override_${setting.key}`;
-          checkbox.checked = hasOverride;
-          const toggleLabel = document.createElement('span');
-          toggleLabel.textContent = 'Override';
-          toggle.append(checkbox, toggleLabel);
-
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.className = 'config-input';
-          input.id = `value_${setting.key}`;
-          input.value = hasOverride ? setting.override : setting.env_value;
-          input.placeholder = setting.env_value;
-          input.disabled = !hasOverride;
-
-          checkbox.addEventListener('change', () => {
-            input.disabled = !checkbox.checked;
-            input.value = checkbox.checked ? (input.value.trim() || setting.env_value) : setting.env_value;
-          });
-
-          const effective = document.createElement('span');
-          effective.className = 'config-effective';
-          effective.id = `effective_${setting.key}`;
-          effective.textContent = `= ${setting.effective_value}`;
-          effective.title = 'Currently in effect';
-
-          tunable.append(toggle, input, effective);
-          row.append(key, env, tunable);
-          content.appendChild(row);
-        });
-      }
-
-      function saveConfig() {
-        const overrides = {};
-
-        currentSettings.forEach(setting => {
-          const checkbox = document.getElementById(`override_${setting.key}`);
-          const input = document.getElementById(`value_${setting.key}`);
-          if (!checkbox || !input || !checkbox.checked) return;
-          const value = input.value.trim();
-          if (value) overrides[setting.key] = value;
-        });
-
-        fetch('/api/overrides', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ overrides }),
-        })
-          .then(r => r.json().then(data => ({ ok: r.ok, data })))
-          .then(({ ok, data }) => {
-            if (!ok || !data.success) {
-              showToast(data.error || 'Failed to save configuration', 'error');
-              return;
-            }
-            showToast('Configuration applied', 'success');
-            showConfigModal();
-          })
-          .catch(err => showToast('Failed to save configuration', 'error'));
+        const action = pendingAction;
+        closeModal();
+        if (action) action();
       }
 
       function closeConfigModal() {
-        document.getElementById('configModal').classList.remove('active');
+        document.getElementById("configModal").classList.remove("active");
       }
 
-      // Track shift key
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Shift") shiftKey = true;
-      });
-      document.addEventListener("keyup", (e) => {
-        if (e.key === "Shift") shiftKey = false;
-      });
+      function closeTopModal() {
+        const confirmOpen = document.getElementById("confirmModal").classList.contains("active");
+        const configOpen = document.getElementById("configModal").classList.contains("active");
+        if (confirmOpen) closeModal();
+        else if (configOpen) closeConfigModal();
+        return confirmOpen || configOpen;
+      }
 
-      // Prevent default image behaviors
-      liveImage.addEventListener("dragstart", (e) => e.preventDefault());
+      /* ---------------------------------------------------------------- zoom */
+      // Scale that makes the image fit the visible stage area. Unlike the old
+      // behaviour this also scales *up*, which is what makes a small sensor
+      // image comfortable to draw a crop on.
+      function fitScale() {
+        if (!naturalSize.width || !naturalSize.height) return 1;
+        const availableW = Math.max(1, container.clientWidth - STAGE_INSET * 2);
+        const availableH = Math.max(1, container.clientHeight - STAGE_INSET * 2);
+        return Math.min(
+          availableW / naturalSize.width,
+          availableH / naturalSize.height,
+        );
+      }
 
-      // Zoom functions - set explicit pixel dimensions
-      function setZoom(level) {
-        zoomLevel = level;
-        if (level === 1) {
-          resetZoom();
-          return;
-        }
-        // Set explicit dimensions based on natural size
+      function isPannable() {
+        return (
+          liveImage.clientWidth > container.clientWidth ||
+          liveImage.clientHeight > container.clientHeight
+        );
+      }
+
+      function applyImageSize() {
+        if (!naturalSize.width || !naturalSize.height) return;
+
+        const factor = zoomLevel === FIT ? fitScale() : zoomLevel;
+        const width = Math.round(naturalSize.width * factor) + "px";
+        const height = Math.round(naturalSize.height * factor) + "px";
+        // A refreshed frame has the same dimensions, so only re-centre when the
+        // rendered size actually changed — otherwise the live feed would yank
+        // the viewport back to the middle every couple of seconds while panned.
+        const sizeChanged =
+          liveImage.style.width !== width || liveImage.style.height !== height;
+
         liveImage.style.maxWidth = "none";
         liveImage.style.maxHeight = "none";
-        liveImage.style.width = naturalSize.width * level + "px";
-        liveImage.style.height = naturalSize.height * level + "px";
-
-        // indicate pannable when zoomed
-        container.style.cursor = "grab";
-        // anchor to top-left so scrolling/panning covers full image
-        container.style.justifyContent = "flex-start";
-        container.style.alignItems = "flex-start";
+        liveImage.style.width = width;
+        liveImage.style.height = height;
+        container.style.cursor = isPannable() ? "grab" : "";
 
         requestAnimationFrame(() => {
+          if (sizeChanged) centerScroll();
           updateGeometry();
-          // center view on image by default when zooming
-          try {
-            container.scrollLeft = Math.max(
-              0,
-              Math.round((liveImage.clientWidth - container.clientWidth) / 2),
-            );
-            container.scrollTop = Math.max(
-              0,
-              Math.round((liveImage.clientHeight - container.clientHeight) / 2),
-            );
-          } catch (e) {}
           updateBox();
+          highlightZoomButton();
         });
+      }
+
+      function centerScroll() {
+        container.scrollLeft = Math.max(
+          0,
+          Math.round((liveImage.clientWidth - container.clientWidth) / 2),
+        );
+        container.scrollTop = Math.max(
+          0,
+          Math.round((liveImage.clientHeight - container.clientHeight) / 2),
+        );
+      }
+
+      function highlightZoomButton() {
+        zoomToolbar.querySelectorAll(".zoom-btn").forEach((btn) => {
+          const value = btn.dataset.zoom;
+          const active =
+            value === FIT
+              ? zoomLevel === FIT
+              : zoomLevel !== FIT && Number(value) === zoomLevel;
+          btn.classList.toggle("is-active", active);
+          btn.setAttribute("aria-pressed", String(active));
+        });
+      }
+
+      function setZoom(level) {
+        zoomLevel = level;
+        applyImageSize();
       }
 
       function resetZoom() {
-        zoomLevel = 1;
-        liveImage.style.width = "";
-        liveImage.style.height = "";
-        liveImage.style.maxWidth = "100%";
-        liveImage.style.maxHeight = "100%";
-
-        // restore cursor and centering
-        container.style.cursor = "";
-        container.style.justifyContent = "center";
-        container.style.alignItems = "center";
-        try {
-          container.scrollLeft = 0;
-          container.scrollTop = 0;
-        } catch (e) {}
-
-        requestAnimationFrame(() => {
-          updateGeometry();
-          updateBox();
-        });
+        setZoom(FIT);
       }
 
-      // Get image display geometry
+      /* ------------------------------------------------------------ geometry */
       function updateGeometry() {
         if (!liveImage || !naturalSize.width) return;
 
-        // CRITICAL: getBoundingClientRect includes CSS transform scale
+        // getBoundingClientRect reflects the actual painted size, which is what
+        // the crop coordinates have to be mapped against.
         const rendered = liveImage.getBoundingClientRect();
-        const renderedWidth = rendered.width;
-        const renderedHeight = rendered.height;
+        if (!rendered.width || !rendered.height) return;
 
-        scale.x = naturalSize.width / renderedWidth;
-        scale.y = naturalSize.height / renderedHeight;
-
-        // For centering calculations only (not for coordinate conversion)
-        const contentWidth = Math.max(container.clientWidth, renderedWidth);
-        const contentHeight = Math.max(container.clientHeight, renderedHeight);
-
-        displayedRect = {
-          left:
-            Math.round((contentWidth - renderedWidth) / 2) +
-            container.scrollLeft,
-          top:
-            Math.round((contentHeight - renderedHeight) / 2) +
-            container.scrollTop,
-          width: renderedWidth,
-          height: renderedHeight,
-        };
+        scale.x = naturalSize.width / rendered.width;
+        scale.y = naturalSize.height / rendered.height;
       }
 
-      // Convert screen coordinates to natural image coordinates
       function toImageCoords(clientX, clientY) {
         const rect = liveImage.getBoundingClientRect();
-        const x = clientX - rect.left;
-        const y = clientY - rect.top;
-
         return {
-          x: Math.round(x * scale.x),
-          y: Math.round(y * scale.y),
+          x: Math.round((clientX - rect.left) * scale.x),
+          y: Math.round((clientY - rect.top) * scale.y),
         };
       }
 
-      // Convert natural coordinates to display coordinates
-      function toDisplayCoords(imgX, imgY) {
-        return {
-          x: imgX / scale.x,
-          y: imgY / scale.y,
-        };
-      }
-
-      // Constrain to image bounds
       function constrain(coords) {
         return [
           Math.max(0, Math.min(coords[0], naturalSize.width)),
@@ -1250,72 +1536,21 @@
         ];
       }
 
-      // Make square while preserving fixed corner/edge
-      function makeSquare(crop, fixed) {
-        const [x1, y1, x2, y2] = crop;
-        const w = Math.abs(x2 - x1);
-        const h = Math.abs(y2 - y1);
-        const size = Math.max(w, h);
-
-        let nx1, ny1, nx2, ny2;
-
-        if (fixed === "se" || fixed === "e" || fixed === "s") {
-          nx1 = Math.min(x1, x2);
-          ny1 = Math.min(y1, y2);
-          nx2 = nx1 + (x2 > x1 ? size : -size);
-          ny2 = ny1 + (y2 > y1 ? size : -size);
-        } else if (fixed === "nw" || fixed === "w" || fixed === "n") {
-          nx2 = Math.max(x1, x2);
-          ny2 = Math.max(y1, y2);
-          nx1 = nx2 - (x2 > x1 ? size : -size);
-          ny1 = ny2 - (y2 > y1 ? size : -size);
-        } else if (fixed === "ne") {
-          nx1 = Math.min(x1, x2);
-          ny2 = Math.max(y1, y2);
-          nx2 = nx1 + (x2 > x1 ? size : -size);
-          ny1 = ny2 - (y2 > y1 ? size : -size);
-        } else if (fixed === "sw") {
-          nx2 = Math.max(x1, x2);
-          ny1 = Math.min(y1, y2);
-          nx1 = nx2 - (x2 > x1 ? size : -size);
-          ny2 = ny1 + (y2 > y1 ? size : -size);
-        } else {
-          const cx = (x1 + x2) / 2;
-          const cy = (y1 + y2) / 2;
-          nx1 = cx - size / 2;
-          ny1 = cy - size / 2;
-          nx2 = cx + size / 2;
-          ny2 = cy + size / 2;
-        }
-
-        return [
-          Math.round(nx1),
-          Math.round(ny1),
-          Math.round(nx2),
-          Math.round(ny2),
-        ];
-      }
-
-      // Update visual box position
       function updateBox() {
         if (!currentCrop) {
           selectionBox.classList.remove("active");
           return;
         }
 
-        // Use offsetLeft/Top to get position relative to the scrollable container
         const imgX = liveImage.offsetLeft;
         const imgY = liveImage.offsetTop;
-
         const [ix1, iy1, ix2, iy2] = currentCrop;
 
-        // Convert natural image coordinates to display pixels
         const d1x = Math.min(ix1, ix2) / scale.x;
         const d1y = Math.min(iy1, iy2) / scale.y;
         const d2x = Math.max(ix1, ix2) / scale.x;
         const d2y = Math.max(iy1, iy2) / scale.y;
 
-        // Position the box relative to the image's offset
         selectionBox.style.left = imgX + d1x + "px";
         selectionBox.style.top = imgY + d1y + "px";
         selectionBox.style.width = d2x - d1x + "px";
@@ -1328,31 +1563,27 @@
         inputs.y2.value = Math.max(iy1, iy2);
       }
 
-      // Clear current selection (reset to saved)
       function clearCurrentSelection() {
         currentCrop = savedCrop ? [...savedCrop] : null;
         if (currentCrop) {
           updateBox();
-          showToast("Selection reset to saved crop", "info");
+          showToast("Selection reset to the saved crop", "info");
         } else {
           selectionBox.classList.remove("active");
-          Object.values(inputs).forEach((i) => (i.value = ""));
+          Object.values(inputs).forEach((input) => (input.value = ""));
           showToast("Selection cleared", "info");
         }
       }
 
-      // Mouse down on image (create new selection) or pan when holding Command/Ctrl
+      /* ------------------------------------------------------------ dragging */
       liveImage.addEventListener("mousedown", (e) => {
         if (e.target.closest(".selection-box")) return;
 
-        // Hold Command (meta) on mac or Ctrl on Windows to pan when zoomed
-        if ((e.metaKey || e.ctrlKey) && zoomLevel > 1) {
+        // Cmd/Ctrl + drag pans when the image overflows the stage.
+        if ((e.metaKey || e.ctrlKey) && isPannable()) {
           isPanning = true;
           panStart = { x: e.clientX, y: e.clientY };
-          panScrollStart = {
-            left: container.scrollLeft,
-            top: container.scrollTop,
-          };
+          panScrollStart = { left: container.scrollLeft, top: container.scrollTop };
           container.style.cursor = "grabbing";
           e.preventDefault();
           return;
@@ -1367,10 +1598,8 @@
         e.preventDefault();
       });
 
-      // Mouse down on selection box (move)
       selectionBox.addEventListener("mousedown", (e) => {
         if (e.target.classList.contains("handle")) return;
-
         updateGeometry();
         isMoving = true;
         dragStart = toImageCoords(e.clientX, e.clientY);
@@ -1380,7 +1609,6 @@
         e.preventDefault();
       });
 
-      // Mouse down on handles (resize)
       document.querySelectorAll(".handle").forEach((handle) => {
         handle.addEventListener("mousedown", (e) => {
           updateGeometry();
@@ -1393,18 +1621,14 @@
         });
       });
 
-      // Global mouse move
       document.addEventListener("mousemove", (e) => {
         if (isPanning) {
-          const dx = e.clientX - panStart.x;
-          const dy = e.clientY - panStart.y;
-          container.scrollLeft = panScrollStart.left - dx;
-          container.scrollTop = panScrollStart.top - dy;
+          container.scrollLeft = panScrollStart.left - (e.clientX - panStart.x);
+          container.scrollTop = panScrollStart.top - (e.clientY - panStart.y);
           return;
         }
 
         if (!isCreating && !isMoving && !isResizing) return;
-
         updateGeometry();
 
         const coords = toImageCoords(e.clientX, e.clientY);
@@ -1414,13 +1638,9 @@
           let curY = coords.y;
 
           if (shiftKey) {
-            // Calculate distance from the start point
             const dx = curX - dragStart.x;
             const dy = curY - dragStart.y;
-            // Use the larger distance to force a square
             const side = Math.max(Math.abs(dx), Math.abs(dy));
-
-            // Apply the side length in the direction the mouse is moving
             curX = dragStart.x + (dx >= 0 ? side : -side);
             curY = dragStart.y + (dy >= 0 ? side : -side);
           }
@@ -1430,13 +1650,12 @@
         } else if (isMoving) {
           const dx = coords.x - dragStart.x;
           const dy = coords.y - dragStart.y;
-          let newCrop = [
+          currentCrop = constrain([
             dragStartCrop[0] + dx,
             dragStartCrop[1] + dy,
             dragStartCrop[2] + dx,
             dragStartCrop[3] + dy,
-          ];
-          currentCrop = constrain(newCrop);
+          ]);
           updateBox();
         } else if (isResizing) {
           let [x1, y1, x2, y2] = [...dragStartCrop];
@@ -1444,24 +1663,17 @@
           let curY = coords.y;
 
           if (shiftKey) {
-            // Determine the anchor point (the corner/side opposite to the handle)
-            const ax = activeHandle.includes("w") ? x2 : x1;
-            const ay = activeHandle.includes("n") ? y2 : y1;
-
-            const dx = curX - ax;
-            const dy = curY - ay;
-            const side = Math.max(Math.abs(dx), Math.abs(dy));
-
-            // Calculate new position for the dragged side/corner
-            const nx = ax + (dx >= 0 ? side : -side);
-            const ny = ay + (dy >= 0 ? side : -side);
-
+            // Keep the corner opposite the dragged handle fixed.
+            const anchorX = activeHandle.includes("w") ? x2 : x1;
+            const anchorY = activeHandle.includes("n") ? y2 : y1;
+            const side = Math.max(Math.abs(curX - anchorX), Math.abs(curY - anchorY));
+            const nx = anchorX + (curX >= anchorX ? side : -side);
+            const ny = anchorY + (curY >= anchorY ? side : -side);
             if (activeHandle.includes("w")) x1 = nx;
             if (activeHandle.includes("e")) x2 = nx;
             if (activeHandle.includes("n")) y1 = ny;
             if (activeHandle.includes("s")) y2 = ny;
           } else {
-            // Standard non-square resizing
             if (activeHandle.includes("n")) y1 = curY;
             if (activeHandle.includes("s")) y2 = curY;
             if (activeHandle.includes("w")) x1 = curX;
@@ -1473,7 +1685,6 @@
         }
       });
 
-      // Global mouse up
       document.addEventListener("mouseup", () => {
         isCreating = false;
         isMoving = false;
@@ -1482,46 +1693,84 @@
         selectionBox.classList.remove("moving");
         if (isPanning) {
           isPanning = false;
-          container.style.cursor = "";
+          container.style.cursor = isPannable() ? "grab" : "";
         }
       });
 
-      // Window resize
-      window.addEventListener("resize", () => {
-        updateGeometry();
-        updateBox();
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Shift") shiftKey = true;
+        if (e.key === "Escape" && closeTopModal()) e.preventDefault();
       });
 
-      // Image loaded
+      document.addEventListener("keyup", (e) => {
+        if (e.key === "Shift") shiftKey = false;
+      });
+
+      liveImage.addEventListener("dragstart", (e) => e.preventDefault());
+
       liveImage.addEventListener("load", () => {
         naturalSize = {
           width: liveImage.naturalWidth,
           height: liveImage.naturalHeight,
         };
-        updateGeometry();
-        updateBox();
+        applyImageSize();
       });
 
-      // Update test button state
+      window.addEventListener("resize", () => {
+        if (zoomLevel === FIT) applyImageSize();
+        else {
+          updateGeometry();
+          updateBox();
+        }
+      });
+
+      /* ------------------------------------------------------------- status */
       function updateTestButton() {
-        const canTest =
-          hasReferences.locked && hasReferences.unlocked && savedCrop;
-        btnTest.disabled = !canTest;
+        btnTest.disabled = !(hasReferences.locked && hasReferences.unlocked && savedCrop);
       }
 
-      // API functions
+      // Single source of truth for the setup hint, so it cannot go stale the
+      // way it did when only loadReferences() rendered it.
+      function renderStatus() {
+        let message;
+        let kind;
+
+        if (!hasReferences.locked && !hasReferences.unlocked) {
+          message = "Add locked and unlocked references to get started";
+          kind = "unconfigured";
+        } else if (!hasReferences.locked || !hasReferences.unlocked) {
+          message = `Add ${hasReferences.locked ? "unlocked" : "locked"} references`;
+          kind = "unconfigured";
+        } else if (!savedCrop) {
+          message = "Set a crop region to continue";
+          kind = "unconfigured";
+        } else {
+          message = "Ready — run a test detection";
+          kind = "unknown";
+        }
+
+        statusEl.textContent = message;
+        statusEl.className = `status ${kind}`;
+        updateTestButton();
+      }
+
+      /* ---------------------------------------------------------------- api */
       function loadFrame() {
         fetch("/api/frame")
           .then((r) => r.json())
           .then((data) => {
-            if (data.image) {
-              liveImage.src = data.image;
-              document.getElementById("currentCrop").textContent = data.crop
-                ? `Active: [${data.crop.join(", ")}]`
-                : "No crop set";
-            }
+            if (!data.image) return;
+            liveImage.src = data.image;
+            renderCurrentCrop(data.crop);
           })
-          .catch((err) => showToast("Failed to load camera frame", "error"));
+          .catch(() => showToast("Failed to load camera frame", "error"));
+      }
+
+      function renderCurrentCrop(crop) {
+        currentCropEl.textContent = crop ? `[${crop.join(", ")}]` : "No crop set";
+        currentCropEl.classList.toggle("is-set", Boolean(crop));
+        // The hint is only useful until the first crop exists.
+        document.getElementById("stageHint").classList.toggle("is-hidden", Boolean(crop));
       }
 
       function loadReferences() {
@@ -1530,75 +1779,70 @@
           .then((data) => {
             hasReferences.locked = (data.locked || []).length > 0;
             hasReferences.unlocked = (data.unlocked || []).length > 0;
-
             renderReferenceGrid("locked", data.locked || []);
             renderReferenceGrid("unlocked", data.unlocked || []);
-
-            updateTestButton();
-
-            const status = document.getElementById("detectionStatus");
-            if (!hasReferences.locked && !hasReferences.unlocked) {
-              status.textContent = "Configure references to enable detection";
-              status.className = "status unconfigured";
-            } else if (!hasReferences.locked || !hasReferences.unlocked) {
-              status.textContent = `Missing: ${!hasReferences.locked ? "LOCKED" : ""} ${!hasReferences.unlocked ? "UNLOCKED" : ""} references`;
-              status.className = "status unconfigured";
-            } else if (!savedCrop) {
-              status.textContent = "Set crop region to enable detection";
-              status.className = "status unconfigured";
-            } else {
-              status.textContent = "Ready for detection";
-              status.className = "status unknown";
-            }
+            renderStatus();
           })
-          .catch((err) => showToast("Failed to load references", "error"));
+          .catch(() => showToast("Failed to load references", "error"));
       }
 
       function renderReferenceGrid(state, refs) {
         const grid = document.getElementById(state + "Grid");
         const count = document.getElementById(state + "Count");
-        const wrapper = document.getElementById(state + "GridWrapper");
+        const emptyNote = document.getElementById(state + "Empty");
 
-        // Clear selection when reloading
         selectedFiles[state].clear();
         updateDeleteButton(state);
-
-        count.textContent = `(${refs.length})`;
+        count.textContent = refs.length;
+        emptyNote.classList.toggle("is-hidden", refs.length > 0);
         grid.innerHTML = "";
 
+        // Built from DOM nodes rather than innerHTML, so a filename can never be
+        // interpreted as markup.
         refs.forEach((ref) => {
           const item = document.createElement("div");
           item.className = "ref-item";
-          item.innerHTML = `
-                    <input type="checkbox" class="ref-checkbox" onchange="toggleSelect('${state}', '${ref.filename}', this.checked)">
-                    <img src="${ref.thumbnail}" alt="${state}">
-                    <button class="ref-delete" onclick="confirmDelete('${state}', '${ref.filename}')" title="Delete">×</button>
-                `;
-          grid.appendChild(item);
 
-          const img = item.querySelector("img");
-          if (img) img.addEventListener("load", () => updateRefCollapse(state));
+          const img = document.createElement("img");
+          img.src = ref.thumbnail;
+          img.alt = `${state} reference`;
+          img.addEventListener("load", () => updateRefCollapse(state));
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.className = "ref-checkbox";
+          checkbox.title = "Select for deletion";
+          checkbox.setAttribute("aria-label", `Select ${state} reference ${ref.filename}`);
+          checkbox.addEventListener("change", () => {
+            if (checkbox.checked) selectedFiles[state].add(ref.filename);
+            else selectedFiles[state].delete(ref.filename);
+            item.classList.toggle("has-selection", checkbox.checked);
+            updateDeleteButton(state);
+          });
+
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "ref-delete";
+          remove.textContent = "×";
+          remove.title = "Delete reference";
+          remove.setAttribute("aria-label", `Delete ${state} reference`);
+          remove.addEventListener("click", () => confirmDelete(state, ref.filename));
+
+          item.append(img, checkbox, remove);
+          grid.appendChild(item);
         });
 
         setTimeout(() => updateRefCollapse(state), 60);
       }
 
-      function toggleSelect(state, filename, checked) {
-        if (checked) {
-          selectedFiles[state].add(filename);
-        } else {
-          selectedFiles[state].delete(filename);
-        }
-        updateDeleteButton(state);
-      }
-
       function updateDeleteButton(state) {
         const btn = document.getElementById(state + "DeleteBtn");
-        if (btn) {
-          const count = selectedFiles[state].size;
-          btn.textContent = `Delete Selected (${count})`;
-          btn.disabled = count === 0;
-        }
+        if (!btn) return;
+        const count = selectedFiles[state].size;
+        // Only offer the bulk action once something is actually selected.
+        btn.classList.toggle("is-hidden", count === 0);
+        btn.textContent = `Delete (${count})`;
+        btn.disabled = count === 0;
       }
 
       function deleteSelected(state) {
@@ -1606,33 +1850,31 @@
         if (count === 0) return;
 
         showConfirm(
-          "Delete Multiple References",
-          `Are you sure you want to delete ${count} ${state} reference${count > 1 ? 's' : ''}? This cannot be undone.`,
+          "Delete references",
+          `Delete ${count} ${state} reference${count > 1 ? "s" : ""}? This cannot be undone.`,
           () => {
-            const filenames = Array.from(selectedFiles[state]);
-            fetch('/api/references/batch-delete', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ state, filenames })
+            fetch("/api/references/batch-delete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ state, filenames: Array.from(selectedFiles[state]) }),
             })
-              .then(r => r.json())
-              .then(data => {
+              .then((r) => r.json())
+              .then((data) => {
                 if (data.success) {
-                  showToast(`Deleted ${data.deleted} ${state} references`, "success");
+                  showToast(`Deleted ${data.deleted} ${state} reference(s)`, "success");
                   loadReferences();
                 } else {
                   showToast("Failed to delete references", "error");
                 }
               })
-              .catch(err => showToast("Error deleting references", "error"));
-          }
+              .catch(() => showToast("Error deleting references", "error"));
+          },
         );
       }
 
       function toggleRefCollapse(state) {
         const wrapper = document.getElementById(state + "GridWrapper");
-        const btn = document.getElementById(state + "Toggle");
-        if (!wrapper || !btn) return;
+        if (!wrapper) return;
         wrapper.classList.toggle("collapsed");
         updateRefCollapse(state);
       }
@@ -1641,32 +1883,28 @@
         const grid = document.getElementById(state + "Grid");
         const wrapper = document.getElementById(state + "GridWrapper");
         const btn = document.getElementById(state + "Toggle");
-
         if (!grid || !wrapper || !btn) return;
 
-        const children = grid.children.length;
-        if (children <= 2) {
-          btn.style.display = "none";
+        if (grid.children.length <= 2) {
+          btn.classList.add("is-hidden");
           wrapper.classList.remove("collapsed");
           return;
         }
 
-        btn.style.display = "inline-block";
-        btn.textContent = wrapper.classList.contains("collapsed")
-          ? "Show more"
-          : "Show less";
+        btn.classList.remove("is-hidden");
+        btn.textContent = wrapper.classList.contains("collapsed") ? "Show all" : "Show less";
       }
 
       function confirmDelete(state, filename) {
         showConfirm(
-          "Delete Reference",
-          `Are you sure you want to delete this ${state} reference? This cannot be undone.`,
+          "Delete reference",
+          `Delete this ${state} reference? This cannot be undone.`,
           () => deleteReference(state, filename),
         );
       }
 
       function deleteReference(state, filename) {
-        fetch(`/api/reference/${state}/${filename}`, { method: "DELETE" })
+        fetch(`/api/reference/${state}/${encodeURIComponent(filename)}`, { method: "DELETE" })
           .then((r) => r.json())
           .then((data) => {
             if (data.success) {
@@ -1676,7 +1914,7 @@
               showToast("Failed to delete reference", "error");
             }
           })
-          .catch((err) => showToast("Error deleting reference", "error"));
+          .catch(() => showToast("Error deleting reference", "error"));
       }
 
       function loadCurrentCrop() {
@@ -1688,7 +1926,8 @@
               currentCrop = [...savedCrop];
               updateBox();
             }
-            updateTestButton();
+            renderCurrentCrop(savedCrop);
+            renderStatus();
           })
           .catch(console.error);
       }
@@ -1702,21 +1941,13 @@
           .then((r) => r.json())
           .then((data) => {
             if (data.success) {
-              showToast(`${state.toUpperCase()} reference captured`, "success");
+              showToast(`${state} reference captured`, "success");
               loadReferences();
             } else {
               showToast(data.error || "Capture failed", "error");
             }
           })
-          .catch((err) => showToast("Error capturing reference", "error"));
-      }
-
-      function uploadReference(state) {
-        document
-          .getElementById(
-            "file" + state.charAt(0).toUpperCase() + state.slice(1),
-          )
-          .click();
+          .catch(() => showToast("Error capturing reference", "error"));
       }
 
       function handleUpload(state, input) {
@@ -1727,120 +1958,19 @@
         formData.append("image", file);
         formData.append("type", state);
 
-        fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        })
+        fetch("/api/upload", { method: "POST", body: formData })
           .then((r) => r.json())
           .then((data) => {
             if (data.success) {
-              showToast(`${state.toUpperCase()} reference uploaded`, "success");
+              showToast(`${state} reference uploaded`, "success");
               loadReferences();
             } else {
               showToast(data.error || "Upload failed", "error");
             }
           })
-          .catch((err) => showToast("Error uploading reference", "error"));
+          .catch(() => showToast("Error uploading reference", "error"));
 
         input.value = "";
-      }
-
-      // Crop history management
-      let cropHistory = [];
-      let currentHistoryIndex = -1;
-
-      function loadCropHistoryFromStorage() {
-        cropHistory = JSON.parse(localStorage.getItem('cropHistory') || '[]');
-        updateCropHistoryUI();
-      }
-
-      function saveCropHistoryToStorage() {
-        localStorage.setItem('cropHistory', JSON.stringify(cropHistory));
-      }
-
-      function updateCropHistoryUI() {
-        const emptyMsg = document.getElementById('historyEmpty');
-        const sliderContainer = document.getElementById('historySliderContainer');
-        const slider = document.getElementById('cropHistorySlider');
-        const indexLabel = document.getElementById('cropHistoryIndex');
-        const countLabel = document.getElementById('cropHistoryCount');
-        const deleteBtn = document.getElementById('historyDeleteBtn');
-
-        if (cropHistory.length === 0) {
-          emptyMsg.style.display = 'block';
-          sliderContainer.style.display = 'none';
-          deleteBtn.disabled = true;
-          return;
-        }
-
-        emptyMsg.style.display = 'none';
-        sliderContainer.style.display = 'flex';
-        slider.max = cropHistory.length - 1;
-        countLabel.textContent = cropHistory.length;
-        indexLabel.textContent = currentHistoryIndex + 1;
-        slider.value = currentHistoryIndex;
-        deleteBtn.disabled = false;
-      }
-
-      function loadCropHistory(idx) {
-        const index = parseInt(idx);
-        currentHistoryIndex = index;
-        const crop = cropHistory[index];
-        if (crop) {
-          currentCrop = [...crop];
-          updateBox();
-          document.getElementById('cropHistoryIndex').textContent = index + 1;
-        }
-      }
-
-      function saveToHistory() {
-        if (!currentCrop) {
-          showToast('No crop to save', 'warning');
-          return;
-        }
-
-        const normalized = [
-          Math.min(currentCrop[0], currentCrop[2]),
-          Math.min(currentCrop[1], currentCrop[3]),
-          Math.max(currentCrop[0], currentCrop[2]),
-          Math.max(currentCrop[1], currentCrop[3]),
-        ];
-
-        // Add new entry at the beginning
-        cropHistory.unshift(normalized);
-        currentHistoryIndex = 0;
-
-        // Limit history to 20 items
-        if (cropHistory.length > 20) {
-          cropHistory = cropHistory.slice(0, 20);
-        }
-
-        saveCropHistoryToStorage();
-        updateCropHistoryUI();
-        showToast('Crop saved to history', 'success');
-      }
-
-      function deleteHistoryItem() {
-        if (cropHistory.length === 0 || currentHistoryIndex < 0) {
-          return;
-        }
-
-        cropHistory.splice(currentHistoryIndex, 1);
-
-        if (cropHistory.length === 0) {
-          currentHistoryIndex = -1;
-        } else if (currentHistoryIndex >= cropHistory.length) {
-          currentHistoryIndex = cropHistory.length - 1;
-        }
-
-        saveCropHistoryToStorage();
-        updateCropHistoryUI();
-
-        if (currentHistoryIndex >= 0) {
-          loadCropHistory(currentHistoryIndex);
-        }
-
-        showToast('History item deleted', 'info');
       }
 
       function saveCrop() {
@@ -1863,60 +1993,324 @@
         })
           .then((r) => r.json())
           .then((data) => {
-            if (data.success) {
-              savedCrop = normalized;
-              currentCrop = [...savedCrop];
-              updateBox();
-              loadReferences();
-              showToast("Crop saved successfully", "success");
-            } else {
+            if (!data.success) {
               showToast(data.error || "Save failed", "error");
+              return;
             }
+            savedCrop = normalized;
+            currentCrop = [...savedCrop];
+            updateBox();
+            renderCurrentCrop(savedCrop);
+            renderStatus();
+            loadReferences();
+            showToast("Crop saved", "success");
           })
-          .catch((err) => showToast("Error saving crop", "error"));
+          .catch(() => showToast("Error saving crop", "error"));
       }
 
       function testDetection() {
-        const status = document.getElementById("detectionStatus");
-        status.textContent = "Testing...";
-        status.className = "status unknown";
+        statusEl.textContent = "Testing…";
+        statusEl.className = "status unknown";
 
         fetch("/api/detect")
           .then((r) => r.json())
           .then((data) => {
-            // Convert decimal confidence to percentage
-            const confidence = data.confidence || 0;
-            const confidencePct = (confidence * 100).toFixed(2);
-            status.textContent = `${data.state.toUpperCase()} (${confidencePct}% confidence)`;
-            status.className = `status ${data.state === "error" || data.state === "unconfigured" ? "unknown" : data.state}`;
+            if (!data.state || data.state === "error") {
+              statusEl.textContent = "Detection failed";
+              statusEl.className = "status unconfigured";
+              return;
+            }
+            const pct = ((data.confidence || 0) * 100).toFixed(1);
+            statusEl.textContent = `${data.state} · ${pct}% confidence`;
+            statusEl.className = `status ${
+              data.state === "unconfigured" ? "unconfigured" : data.state
+            }`;
           })
-          .catch((err) => {
-            status.textContent = "Detection failed";
-            status.className = "status unknown";
-            showToast("Detection error: " + err, "error");
+          .catch(() => {
+            statusEl.textContent = "Detection failed";
+            statusEl.className = "status unconfigured";
+            showToast("Detection error", "error");
           });
       }
 
-      // Input change handlers
+      /* ------------------------------------------------------ crop history */
+      function loadCropHistoryFromStorage() {
+        cropHistory = JSON.parse(localStorage.getItem("cropHistory") || "[]");
+        updateCropHistoryUI();
+      }
+
+      function saveCropHistoryToStorage() {
+        localStorage.setItem("cropHistory", JSON.stringify(cropHistory));
+      }
+
+      function updateCropHistoryUI() {
+        const emptyMsg = document.getElementById("historyEmpty");
+        const sliderContainer = document.getElementById("historySliderContainer");
+        const slider = document.getElementById("cropHistorySlider");
+        const deleteBtn = document.getElementById("historyDeleteBtn");
+
+        if (cropHistory.length === 0) {
+          emptyMsg.classList.remove("is-hidden");
+          sliderContainer.classList.add("is-hidden");
+          deleteBtn.disabled = true;
+          return;
+        }
+
+        emptyMsg.classList.add("is-hidden");
+        sliderContainer.classList.remove("is-hidden");
+        slider.max = cropHistory.length - 1;
+        slider.value = currentHistoryIndex;
+        document.getElementById("cropHistoryCount").textContent = cropHistory.length;
+        document.getElementById("cropHistoryIndex").textContent = currentHistoryIndex + 1;
+        deleteBtn.disabled = false;
+      }
+
+      function loadCropHistory(value) {
+        const index = Number.parseInt(value, 10);
+        const crop = cropHistory[index];
+        if (!crop) return;
+        currentHistoryIndex = index;
+        currentCrop = [...crop];
+        updateBox();
+        document.getElementById("cropHistoryIndex").textContent = index + 1;
+      }
+
+      function saveToHistory() {
+        if (!currentCrop) {
+          showToast("No crop to save", "warning");
+          return;
+        }
+
+        cropHistory.unshift([
+          Math.min(currentCrop[0], currentCrop[2]),
+          Math.min(currentCrop[1], currentCrop[3]),
+          Math.max(currentCrop[0], currentCrop[2]),
+          Math.max(currentCrop[1], currentCrop[3]),
+        ]);
+        currentHistoryIndex = 0;
+        cropHistory = cropHistory.slice(0, 20);
+
+        saveCropHistoryToStorage();
+        updateCropHistoryUI();
+        showToast("Crop saved to history", "success");
+      }
+
+      function deleteHistoryItem() {
+        if (cropHistory.length === 0 || currentHistoryIndex < 0) return;
+
+        cropHistory.splice(currentHistoryIndex, 1);
+        if (cropHistory.length === 0) currentHistoryIndex = -1;
+        else if (currentHistoryIndex >= cropHistory.length) {
+          currentHistoryIndex = cropHistory.length - 1;
+        }
+
+        saveCropHistoryToStorage();
+        updateCropHistoryUI();
+        if (currentHistoryIndex >= 0) loadCropHistory(currentHistoryIndex);
+        showToast("History item deleted", "info");
+      }
+
+      /* ----------------------------------------------------- config modal */
+      function configRow(keyText, valueText) {
+        const row = document.createElement("div");
+        row.className = "config-row";
+
+        const key = document.createElement("span");
+        key.className = "config-key";
+        key.textContent = keyText;
+
+        const value = document.createElement("span");
+        value.className = "config-value";
+        value.textContent = valueText;
+        value.title = valueText;
+
+        row.append(key, value);
+        return row;
+      }
+
+      function renderConfig(config) {
+        const content = document.getElementById("configContent");
+        content.innerHTML = "";
+        currentSettings = config.settings || [];
+
+        const connection = (config.info || []).find((item) => item.key === "config_dir");
+        if (connection) {
+          document.getElementById("configPath").textContent = `${connection.value}/overrides.json`;
+        }
+
+        const infoTitle = document.createElement("h4");
+        infoTitle.textContent = "Connection (env vars — restart to change)";
+        content.appendChild(infoTitle);
+
+        (config.info || []).forEach((item) => {
+          content.appendChild(configRow(item.key, item.value));
+        });
+
+        const settingsTitle = document.createElement("h4");
+        settingsTitle.textContent = "Detection tunables";
+        content.appendChild(settingsTitle);
+
+        currentSettings.forEach((setting) => {
+          const row = document.createElement("div");
+          row.className = "config-row";
+
+          const key = document.createElement("span");
+          key.className = "config-key";
+          key.textContent = setting.key;
+
+          const env = document.createElement("span");
+          env.className = "config-env-value";
+          env.textContent = `${setting.env_var}=${setting.env_value}`;
+          env.title = env.textContent;
+
+          const tunable = document.createElement("div");
+          tunable.className = "config-tunable";
+
+          const hasOverride = setting.override !== null && setting.override !== undefined;
+
+          const toggle = document.createElement("label");
+          toggle.className = "config-toggle";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.id = `override_${setting.key}`;
+          checkbox.checked = hasOverride;
+          const toggleLabel = document.createElement("span");
+          toggleLabel.textContent = "Override";
+          toggle.append(checkbox, toggleLabel);
+
+          const input = document.createElement("input");
+          input.type = "text";
+          input.className = "config-input";
+          input.id = `value_${setting.key}`;
+          input.value = hasOverride ? setting.override : setting.env_value;
+          input.placeholder = setting.env_value;
+          input.disabled = !hasOverride;
+
+          checkbox.addEventListener("change", () => {
+            input.disabled = !checkbox.checked;
+            input.value = checkbox.checked
+              ? input.value.trim() || setting.env_value
+              : setting.env_value;
+          });
+
+          const effective = document.createElement("span");
+          effective.className = "config-effective";
+          effective.id = `effective_${setting.key}`;
+          effective.textContent = setting.effective_value;
+          effective.title = "Currently in effect";
+
+          tunable.append(toggle, input, effective);
+          row.append(key, env, tunable);
+          content.appendChild(row);
+        });
+      }
+
+      function showConfigModal() {
+        fetch("/api/config")
+          .then((r) => r.json())
+          .then((data) => {
+            renderConfig(data);
+            document.getElementById("configModal").classList.add("active");
+          })
+          .catch(() => showToast("Failed to load config", "error"));
+      }
+
+      function saveConfig() {
+        const overrides = {};
+
+        currentSettings.forEach((setting) => {
+          const checkbox = document.getElementById(`override_${setting.key}`);
+          const input = document.getElementById(`value_${setting.key}`);
+          if (!checkbox || !input || !checkbox.checked) return;
+          const value = input.value.trim();
+          if (value) overrides[setting.key] = value;
+        });
+
+        fetch("/api/overrides", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ overrides }),
+        })
+          .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+          .then(({ ok, data }) => {
+            if (!ok || !data.success) {
+              showToast(data.error || "Failed to save configuration", "error");
+              return;
+            }
+            showToast("Configuration applied", "success");
+            showConfigModal();
+          })
+          .catch(() => showToast("Failed to save configuration", "error"));
+      }
+
+      /* ------------------------------------------------------------- wiring */
+      function on(id, event, handler) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(event, handler);
+      }
+
+      on("saveCropBtn", "click", saveCrop);
+      on("clearSelectionBtn", "click", clearCurrentSelection);
+      on("configBtn", "click", showConfigModal);
+      on("modalCancel", "click", closeModal);
+      on("modalConfirm", "click", confirmAction);
+      on("configCloseBtn", "click", closeConfigModal);
+      on("configSaveBtn", "click", saveConfig);
+      on("btnTest", "click", testDetection);
+      on("saveHistoryBtn", "click", saveToHistory);
+      on("historyDeleteBtn", "click", deleteHistoryItem);
+      on("captureLockedBtn", "click", () => captureReference("locked"));
+      on("captureUnlockedBtn", "click", () => captureReference("unlocked"));
+      on("uploadLockedBtn", "click", () => document.getElementById("fileLocked").click());
+      on("uploadUnlockedBtn", "click", () => document.getElementById("fileUnlocked").click());
+      on("fileLocked", "change", (e) => handleUpload("locked", e.target));
+      on("fileUnlocked", "change", (e) => handleUpload("unlocked", e.target));
+      on("lockedToggle", "click", () => toggleRefCollapse("locked"));
+      on("unlockedToggle", "click", () => toggleRefCollapse("unlocked"));
+      on("lockedDeleteBtn", "click", () => deleteSelected("locked"));
+      on("unlockedDeleteBtn", "click", () => deleteSelected("unlocked"));
+      on("cropHistorySlider", "input", (e) => loadCropHistory(e.target.value));
+
+      zoomToolbar.addEventListener("click", (e) => {
+        const btn = e.target.closest(".zoom-btn");
+        if (!btn) return;
+        const value = btn.dataset.zoom;
+        setZoom(value === FIT ? FIT : Number(value));
+      });
+
       Object.values(inputs).forEach((input) => {
         input.addEventListener("change", () => {
           currentCrop = [
-            parseInt(inputs.x1.value) || 0,
-            parseInt(inputs.y1.value) || 0,
-            parseInt(inputs.x2.value) || 0,
-            parseInt(inputs.y2.value) || 0,
+            Number.parseInt(inputs.x1.value, 10) || 0,
+            Number.parseInt(inputs.y1.value, 10) || 0,
+            Number.parseInt(inputs.x2.value, 10) || 0,
+            Number.parseInt(inputs.y2.value, 10) || 0,
           ];
           updateBox();
-          updateTestButton();
         });
       });
 
-      // Initialize
+      // Dismiss modals by clicking the backdrop.
+      document.querySelectorAll(".modal-overlay").forEach((overlay) => {
+        overlay.addEventListener("mousedown", (e) => {
+          if (e.target !== overlay) return;
+          if (overlay.id === "confirmModal") closeModal();
+          else closeConfigModal();
+        });
+      });
+
+      /* ---------------------------------------------------------------- init */
+      const isDragging = () => isCreating || isMoving || isResizing || isPanning;
+
       loadFrame();
       loadReferences();
       loadCurrentCrop();
       loadCropHistoryFromStorage();
-      setInterval(loadFrame, 2000);
+      highlightZoomButton();
+      // Skip refreshes mid-drag so the frame cannot shift under the cursor.
+      setInterval(() => {
+        if (!isDragging()) loadFrame();
+      }, 2000);
     </script>
   </body>
 </html>
