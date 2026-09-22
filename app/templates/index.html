@@ -86,6 +86,13 @@
         color: inherit;
       }
 
+      body,
+      button,
+      .handle,
+      .selection-box {
+        -webkit-tap-highlight-color: transparent;
+      }
+
       :focus-visible {
         outline: 2px solid var(--accent);
         outline-offset: 2px;
@@ -187,6 +194,9 @@
         flex-wrap: wrap;
         min-height: var(--topbar-height);
         padding: 8px 16px;
+        padding-top: calc(8px + env(safe-area-inset-top, 0px));
+        padding-left: calc(16px + env(safe-area-inset-left, 0px));
+        padding-right: calc(16px + env(safe-area-inset-right, 0px));
         background: var(--bg-elev);
         border-bottom: 1px solid var(--border);
         z-index: 20;
@@ -301,6 +311,13 @@
         background: #000;
       }
 
+      /* The image is only a drag surface for drawing a crop while it fits the
+         stage. Once it overflows, dragging has to pan the scroll container
+         instead, so touch-action is left alone (see applyImageSize). */
+      .image-container:not(.is-scrollable) #liveImage {
+        touch-action: none;
+      }
+
       /* Crop overlay sits over the image, inside the scroll container */
       .crop-layer {
         position: absolute;
@@ -309,6 +326,8 @@
       }
 
       .selection-box {
+        /* Handle size, also used to derive the overhang offsets below. */
+        --handle: 13px;
         position: absolute;
         display: none;
         border: 2px solid var(--crop);
@@ -317,6 +336,7 @@
           0 0 0 1px rgba(0, 0, 0, 0.55),
           inset 0 0 0 1px rgba(0, 0, 0, 0.25);
         pointer-events: auto;
+        touch-action: none;
         cursor: move;
       }
 
@@ -330,61 +350,77 @@
 
       .handle {
         position: absolute;
+        width: var(--handle);
+        height: var(--handle);
         background: var(--crop);
         border: 1.5px solid rgba(0, 0, 0, 0.6);
         border-radius: 3px;
         pointer-events: auto;
+        touch-action: none;
       }
 
       .handle.nw {
-        top: -6px;
-        left: -6px;
+        top: calc(var(--handle) / -2);
+        left: calc(var(--handle) / -2);
         cursor: nw-resize;
       }
       .handle.ne {
-        top: -6px;
-        right: -6px;
+        top: calc(var(--handle) / -2);
+        right: calc(var(--handle) / -2);
         cursor: ne-resize;
       }
       .handle.sw {
-        bottom: -6px;
-        left: -6px;
+        bottom: calc(var(--handle) / -2);
+        left: calc(var(--handle) / -2);
         cursor: sw-resize;
       }
       .handle.se {
-        bottom: -6px;
-        right: -6px;
+        bottom: calc(var(--handle) / -2);
+        right: calc(var(--handle) / -2);
         cursor: se-resize;
       }
       .handle.n,
       .handle.s {
         left: 50%;
         transform: translateX(-50%);
-        width: 22px;
-        height: 9px;
+        width: calc(var(--handle) * 1.8);
+        height: var(--handle);
       }
       .handle.n {
-        top: -5px;
+        top: calc(var(--handle) / -2);
         cursor: n-resize;
       }
       .handle.s {
-        bottom: -5px;
+        bottom: calc(var(--handle) / -2);
         cursor: s-resize;
       }
       .handle.w,
       .handle.e {
         top: 50%;
         transform: translateY(-50%);
-        width: 9px;
-        height: 22px;
+        width: var(--handle);
+        height: calc(var(--handle) * 1.8);
       }
       .handle.w {
-        left: -5px;
+        left: calc(var(--handle) / -2);
         cursor: w-resize;
       }
       .handle.e {
-        right: -5px;
+        right: calc(var(--handle) / -2);
         cursor: e-resize;
+      }
+
+      /* Fingers need bigger grab targets than a mouse pointer. The visible handle
+         stays modest and an invisible pseudo-element enlarges the hit area. */
+      @media (pointer: coarse) {
+        .selection-box {
+          --handle: 16px;
+        }
+        .handle::after {
+          content: "";
+          position: absolute;
+          inset: -8px;
+        }
       }
 
       /* Floating zoom controls, pinned inside the stage (never under the sidebar) */
@@ -1048,7 +1084,7 @@
       .toast-container {
         position: fixed;
         left: 50%;
-        bottom: 16px;
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
         transform: translateX(-50%);
         display: flex;
         flex-direction: column-reverse;
@@ -1133,19 +1169,63 @@
       }
 
       @media (max-width: 720px) {
+        /* Stack the zoom bar under the image instead of floating it over the
+           picture — the stage is too short on a phone for an overlay. */
+        .stage {
+          flex-direction: column;
+        }
+        .stage-toolbar {
+          position: static;
+          order: 2;
+          align-self: center;
+          margin: 0 12px 12px;
+          backdrop-filter: none;
+        }
         .field-group {
           order: 3;
           width: 100%;
           justify-content: space-between;
         }
         .field input {
-          width: 52px;
+          width: 56px;
+          padding: 6px 6px;
         }
         .config-key {
           flex-basis: 108px;
         }
         .config-env-value {
           display: none;
+        }
+      }
+
+      /* Keep the action row from spilling onto a third line on a small phone. */
+      @media (max-width: 470px) {
+        .brand h1 {
+          display: none;
+        }
+        .topbar {
+          gap: 8px;
+        }
+        .btn {
+          padding: 7px 11px;
+        }
+        /* The four numeric fields need the whole row; X1..Y2 label themselves. */
+        .field-group {
+          gap: 6px;
+        }
+        .field-group__label {
+          display: none;
+        }
+        .field input {
+          width: 50px;
+        }
+      }
+
+      /* Bigger tap targets for the zoom bar on touch devices. */
+      @media (pointer: coarse) {
+        .zoom-btn {
+          padding: 9px 13px;
+          font-size: 0.82rem;
         }
       }
 
@@ -1201,10 +1281,10 @@
 
       <div class="field-group">
         <span class="field-group__label" id="cropFieldsLabel">Crop</span>
-        <label class="field">X1 <input type="number" id="x1" placeholder="0" /></label>
-        <label class="field">Y1 <input type="number" id="y1" placeholder="0" /></label>
-        <label class="field">X2 <input type="number" id="x2" placeholder="0" /></label>
-        <label class="field">Y2 <input type="number" id="y2" placeholder="0" /></label>
+        <label class="field">X1 <input type="number" id="x1" min="0" step="1" inputmode="numeric" placeholder="0" /></label>
+        <label class="field">Y1 <input type="number" id="y1" min="0" step="1" inputmode="numeric" placeholder="0" /></label>
+        <label class="field">X2 <input type="number" id="x2" min="0" step="1" inputmode="numeric" placeholder="0" /></label>
+        <label class="field">Y2 <input type="number" id="y2" min="0" step="1" inputmode="numeric" placeholder="0" /></label>
       </div>
 
       <button class="btn btn--primary" id="saveCropBtn">Save crop</button>
@@ -1367,6 +1447,8 @@
       let isResizing = false;
       let dragStart = { x: 0, y: 0 };
       let dragStartCrop = null;
+      let cropBeforeDrag = null;
+      let dragMoved = false;
       let activeHandle = null;
       let shiftKey = false;
       let hasReferences = { locked: false, unlocked: false };
@@ -1464,7 +1546,13 @@
         liveImage.style.maxHeight = "none";
         liveImage.style.width = width;
         liveImage.style.height = height;
-        container.style.cursor = isPannable() ? "grab" : "";
+
+        // Only a fitted (non-overflowing) image is a drag surface for drawing a
+        // crop; when it overflows, dragging has to pan the stage. The class drives
+        // the touch-action rule that decides which of the two the browser allows.
+        const scrollable = isPannable();
+        container.classList.toggle("is-scrollable", scrollable);
+        container.style.cursor = scrollable ? "grab" : "";
 
         requestAnimationFrame(() => {
           if (sizeChanged) centerScroll();
@@ -1528,12 +1616,28 @@
       }
 
       function constrain(coords) {
+        if (!naturalSize.width || !naturalSize.height) return coords;
         return [
           Math.max(0, Math.min(coords[0], naturalSize.width)),
           Math.max(0, Math.min(coords[1], naturalSize.height)),
           Math.max(0, Math.min(coords[2], naturalSize.width)),
           Math.max(0, Math.min(coords[3], naturalSize.height)),
         ];
+      }
+
+      function normaliseCrop(crop) {
+        return [
+          Math.min(crop[0], crop[2]),
+          Math.min(crop[1], crop[3]),
+          Math.max(crop[0], crop[2]),
+          Math.max(crop[1], crop[3]),
+        ];
+      }
+
+      const MIN_CROP_PX = 8;
+
+      function cropIsUsable(crop) {
+        return crop && crop[2] - crop[0] >= MIN_CROP_PX && crop[3] - crop[1] >= MIN_CROP_PX;
       }
 
       function updateBox() {
@@ -1557,10 +1661,48 @@
         selectionBox.style.height = d2y - d1y + "px";
         selectionBox.classList.add("active");
 
-        inputs.x1.value = Math.min(ix1, ix2);
-        inputs.y1.value = Math.min(iy1, iy2);
-        inputs.x2.value = Math.max(ix1, ix2);
-        inputs.y2.value = Math.max(iy1, iy2);
+        // Never overwrite a field the user is currently typing into: the 2s
+        // frame refresh used to rewrite these mid-edit and lose the input.
+        if (!coordFieldFocused()) writeCoordFields(currentCrop);
+      }
+
+      function writeCoordFields(crop) {
+        const [x1, y1, x2, y2] = normaliseCrop(crop);
+        inputs.x1.value = x1;
+        inputs.y1.value = y1;
+        inputs.x2.value = x2;
+        inputs.y2.value = y2;
+      }
+
+      /* ---------------------------------------------------- coordinate fields */
+      const COORD_KEYS = ["x1", "y1", "x2", "y2"];
+
+      function coordFieldFocused() {
+        return COORD_KEYS.some((key) => document.activeElement === inputs[key]);
+      }
+
+      // Read the fields, keeping the previous value for anything empty/unparseable
+      // so clearing a field mid-edit does not collapse the crop to zero.
+      function readCoordFields() {
+        const fallback = currentCrop || [0, 0, 0, 0];
+        return COORD_KEYS.map((key, index) => {
+          const value = Number.parseInt(inputs[key].value, 10);
+          return Number.isFinite(value) ? value : fallback[index];
+        });
+      }
+
+      // While typing: follow the fields, clamp to the image, but leave the text
+      // alone and do not reorder it (swapping values under the caret is what made
+      // this feel glitchy).
+      function coordsEdited() {
+        currentCrop = constrain(readCoordFields());
+        updateBox();
+      }
+
+      // On commit (blur / Enter): order the corners and write them back.
+      function coordsCommitted() {
+        currentCrop = normaliseCrop(constrain(readCoordFields()));
+        updateBox();
       }
 
       function clearCurrentSelection() {
@@ -1576,7 +1718,21 @@
       }
 
       /* ------------------------------------------------------------ dragging */
-      liveImage.addEventListener("mousedown", (e) => {
+      // Pointer events cover mouse, touch and pen with one code path, which is
+      // what makes the crop editor usable on a phone or tablet at all.
+      function beginDrag(e) {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        updateGeometry();
+        dragMoved = false;
+        cropBeforeDrag = currentCrop ? [...currentCrop] : null;
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch (err) {
+          /* capture is best-effort */
+        }
+      }
+
+      liveImage.addEventListener("pointerdown", (e) => {
         if (e.target.closest(".selection-box")) return;
 
         // Cmd/Ctrl + drag pans when the image overflows the stage.
@@ -1589,7 +1745,7 @@
           return;
         }
 
-        updateGeometry();
+        beginDrag(e);
         isCreating = true;
         const coords = toImageCoords(e.clientX, e.clientY);
         dragStart = coords;
@@ -1598,9 +1754,9 @@
         e.preventDefault();
       });
 
-      selectionBox.addEventListener("mousedown", (e) => {
+      selectionBox.addEventListener("pointerdown", (e) => {
         if (e.target.classList.contains("handle")) return;
-        updateGeometry();
+        beginDrag(e);
         isMoving = true;
         dragStart = toImageCoords(e.clientX, e.clientY);
         dragStartCrop = [...currentCrop];
@@ -1610,8 +1766,8 @@
       });
 
       document.querySelectorAll(".handle").forEach((handle) => {
-        handle.addEventListener("mousedown", (e) => {
-          updateGeometry();
+        handle.addEventListener("pointerdown", (e) => {
+          beginDrag(e);
           isResizing = true;
           activeHandle = handle.dataset.handle;
           dragStart = toImageCoords(e.clientX, e.clientY);
@@ -1621,7 +1777,7 @@
         });
       });
 
-      document.addEventListener("mousemove", (e) => {
+      document.addEventListener("pointermove", (e) => {
         if (isPanning) {
           container.scrollLeft = panScrollStart.left - (e.clientX - panStart.x);
           container.scrollTop = panScrollStart.top - (e.clientY - panStart.y);
@@ -1629,6 +1785,7 @@
         }
 
         if (!isCreating && !isMoving && !isResizing) return;
+        dragMoved = true;
         updateGeometry();
 
         const coords = toImageCoords(e.clientX, e.clientY);
@@ -1685,17 +1842,27 @@
         }
       });
 
-      document.addEventListener("mouseup", () => {
+      function endDrag() {
+        // A tap (no movement) should not wipe out the existing selection.
+        if (isCreating && !dragMoved) {
+          currentCrop = cropBeforeDrag;
+          updateBox();
+        }
         isCreating = false;
         isMoving = false;
         isResizing = false;
+        dragMoved = false;
+        cropBeforeDrag = null;
         activeHandle = null;
         selectionBox.classList.remove("moving");
         if (isPanning) {
           isPanning = false;
           container.style.cursor = isPannable() ? "grab" : "";
         }
-      });
+      }
+
+      document.addEventListener("pointerup", endDrag);
+      document.addEventListener("pointercancel", endDrag);
 
       document.addEventListener("keydown", (e) => {
         if (e.key === "Shift") shiftKey = true;
@@ -1713,6 +1880,9 @@
           width: liveImage.naturalWidth,
           height: liveImage.naturalHeight,
         };
+        // Give the spinners a real range instead of letting them run to 99999.
+        inputs.x1.max = inputs.x2.max = naturalSize.width;
+        inputs.y1.max = inputs.y2.max = naturalSize.height;
         applyImageSize();
       });
 
@@ -1979,12 +2149,12 @@
           return;
         }
 
-        const normalized = [
-          Math.min(currentCrop[0], currentCrop[2]),
-          Math.min(currentCrop[1], currentCrop[3]),
-          Math.max(currentCrop[0], currentCrop[2]),
-          Math.max(currentCrop[1], currentCrop[3]),
-        ];
+        const normalized = normaliseCrop(constrain(currentCrop));
+
+        if (!cropIsUsable(normalized)) {
+          showToast(`Crop must be at least ${MIN_CROP_PX}px in each direction`, "warning");
+          return;
+        }
 
         fetch("/api/crop", {
           method: "POST",
@@ -2033,8 +2203,7 @@
           });
       }
 
-      /* ------------------------------------------------------ crop history */
-      function loadCropHistoryFromStorage() {
+      /* ------------------------------------------------------ crop history */      function loadCropHistoryFromStorage() {
         cropHistory = JSON.parse(localStorage.getItem("cropHistory") || "[]");
         updateCropHistoryUI();
       }
@@ -2081,12 +2250,7 @@
           return;
         }
 
-        cropHistory.unshift([
-          Math.min(currentCrop[0], currentCrop[2]),
-          Math.min(currentCrop[1], currentCrop[3]),
-          Math.max(currentCrop[0], currentCrop[2]),
-          Math.max(currentCrop[1], currentCrop[3]),
-        ]);
+        cropHistory.unshift(normaliseCrop(constrain(currentCrop)));
         currentHistoryIndex = 0;
         cropHistory = cropHistory.slice(0, 20);
 
@@ -2278,21 +2442,26 @@
         setZoom(value === FIT ? FIT : Number(value));
       });
 
-      Object.values(inputs).forEach((input) => {
-        input.addEventListener("change", () => {
-          currentCrop = [
-            Number.parseInt(inputs.x1.value, 10) || 0,
-            Number.parseInt(inputs.y1.value, 10) || 0,
-            Number.parseInt(inputs.x2.value, 10) || 0,
-            Number.parseInt(inputs.y2.value, 10) || 0,
-          ];
-          updateBox();
+      COORD_KEYS.forEach((key) => {
+        const input = inputs[key];
+        // `input` gives live feedback while typing; `change` fires on blur/Enter
+        // and is where the values get ordered and written back.
+        input.addEventListener("input", coordsEdited);
+        input.addEventListener("change", coordsCommitted);
+        input.addEventListener("focus", () => input.select());
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            input.blur();
+          }
         });
       });
 
       // Dismiss modals by clicking the backdrop.
       document.querySelectorAll(".modal-overlay").forEach((overlay) => {
-        overlay.addEventListener("mousedown", (e) => {
+        // pointerdown rather than click so a press that starts outside and ends
+        // inside the dialog still counts as dismissing it.
+        overlay.addEventListener("pointerdown", (e) => {
           if (e.target !== overlay) return;
           if (overlay.id === "confirmModal") closeModal();
           else closeConfigModal();
