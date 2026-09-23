@@ -173,12 +173,28 @@ def main():
 
     availability_topic = f"{MQTT_TOPIC}/availability"
 
+    # Availability is debounced: a camera that misses a frame or two (a Wi-Fi
+    # hiccup, a camera reboot) should not flap the entities in Home Assistant.
+    # The retained "offline" is only published once the camera has been
+    # unreachable for `offline_grace_seconds`.
+    availability = {"offline_since": None, "unavailable": False}
+
     # Setup MQTT client
     mqtt_client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+
+    # Last will: if this process dies or the network drops, the *broker* marks the
+    # device unavailable. Doing it here instead of in on_disconnect matters:
+    # a retained "offline" published while disconnected gets queued by paho and
+    # flushed *after* the reconnect's "online", which left the device stuck
+    # showing offline until the next real outage.
+    mqtt_client.will_set(availability_topic, "offline", qos=1, retain=True)
 
     if MQTT_USER:
         mqtt_client.username_pw_set(MQTT_USER, MQTT_PASS)
         print(f"MQTT username: {MQTT_USER}")
+
+    def publish_availability(online):
+        mqtt_client.publish(availability_topic, "online" if online else "offline", qos=1, retain=True)
 
     def on_connect(client, userdata, flags, reason_code, properties):
         if reason_code == 0 or (hasattr(reason_code, 'is_failure') and not reason_code.is_failure):
@@ -190,8 +206,9 @@ def main():
                 for topic, payload, label in messages:
                     publish_discovery(client, topic, payload, label)
 
-                # Publish retained availability online
-                client.publish(availability_topic, "online", qos=1, retain=True)
+                # Republish availability, reflecting an outage that is still in
+                # progress rather than blindly claiming to be online.
+                publish_availability(not availability["unavailable"])
 
                 # Subscribe to command topics
                 client.subscribe(f"{MQTT_TOPIC}/command/capture_locked", qos=1)
@@ -202,12 +219,10 @@ def main():
             print(f"MQTT connection failed: {reason_code}")
 
     def on_disconnect(client, userdata, disconnect_flags, rc, properties):
+        # Availability is owned by the last will plus the grace period in the
+        # detection loop; publishing "offline" from here would flap on a brief
+        # reconnect (see the will_set comment above).
         print(f"MQTT disconnected (rc={rc}), will retry...")
-        # Publish retained offline availability so Home Assistant marks the entity unavailable
-        try:
-            client.publish(availability_topic, "offline", qos=1, retain=True)
-        except Exception:
-            pass
 
     def on_message(client, userdata, msg):
         """Handle capture commands.
@@ -256,30 +271,42 @@ def main():
     # Start detection loop in background thread
     def detection_loop():
         print(f"Detection loop started ({REFRESH_RATE}s interval)")
-        camera_was_online = True
         while True:
             try:
+                # Read each cycle so the WebUI override applies without a restart.
+                grace = max(0, int(detector.settings['offline_grace_seconds']))
                 state, confidence = detector.detect()
 
                 if mqtt_client:
                     if not detector.camera_online:
-                        if camera_was_online:
-                            print("Camera offline - marking entities unavailable")
-                            mqtt_client.publish(availability_topic, "offline", qos=1, retain=True)
+                        if availability["offline_since"] is None:
+                            availability["offline_since"] = time.monotonic()
+                            print(f"Camera unreachable - waiting up to {grace}s before marking unavailable")
+
+                        down_for = time.monotonic() - availability["offline_since"]
+                        if not availability["unavailable"] and down_for >= grace:
+                            print(f"Camera unreachable for {down_for:.0f}s - marking entities unavailable")
+                            publish_availability(False)
                             try:
                                 placeholder = create_placeholder_image()
                                 mqtt_client.publish(f"{MQTT_TOPIC}/camera", placeholder, qos=0, retain=False)
                                 mqtt_client.publish(f"{MQTT_TOPIC}/camera_cropped", placeholder, qos=0, retain=False)
                             except Exception as e:
                                 print(f"Failed to publish placeholder image: {e}")
-                            camera_was_online = False
+                            availability["unavailable"] = True
+
                         time.sleep(REFRESH_RATE)
                         continue
 
-                    if not camera_was_online:
-                        print("Camera back online - marking entities available")
-                        mqtt_client.publish(availability_topic, "online", qos=1, retain=True)
-                        camera_was_online = True
+                    if availability["offline_since"] is not None:
+                        down_for = time.monotonic() - availability["offline_since"]
+                        availability["offline_since"] = None
+                        if availability["unavailable"]:
+                            print(f"Camera back after {down_for:.0f}s - marking entities available")
+                            publish_availability(True)
+                            availability["unavailable"] = False
+                        else:
+                            print(f"Camera recovered after {down_for:.0f}s - within grace, availability unchanged")
 
                 if state and mqtt_client and state != "unconfigured":
                     # Compute published state honoring confidence threshold

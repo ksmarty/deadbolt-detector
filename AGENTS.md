@@ -13,6 +13,7 @@
 - `REFRESH_RATE=5`: detection loop interval in seconds
 - `DETECTOR_DEBUG=1`: Enable debug output
 - `MIN_CONFIDENCE=0.7`: Threshold below which state becomes "unknown"
+- `OFFLINE_GRACE_SECONDS=30`: How long the camera may be unreachable before availability flips to `offline` (0 = report immediately)
 - `ALIGN_SEARCH_PIXELS=15`: How far around the crop the reference may be found when matching (0 disables alignment)
 - `DENOISE_STRENGTH=0`: OpenCV fastNlMeansDenoising strength (0=off, 10=mild, higher=stronger)
 - `CLAHE_CLIP_LIMIT=2.0`: CLAHE contrast enhancement clip limit (0=off, ~2=moderate, higher=more local contrast)
@@ -39,6 +40,12 @@ and can also be overridden at runtime from the WebUI config modal (persisted to
 - MQTT callbacks run on paho's network thread: never let an exception escape
   them, and make sure anything they reference already exists before
   `loop_start()`.
+- Availability is owned by two things, and they must not fight: the MQTT **last
+  will** (broker-side, covers the process dying) and the grace period in
+  `detection_loop` (covers camera outages, see `OFFLINE_GRACE_SECONDS`). Do not
+  publish `offline` from `on_disconnect` — paho queues it while disconnected and
+  flushes it *after* the next connect's `online`, which leaves the retained
+  availability stuck on `offline` until the next real outage.
 
 ## GitHub workflow
 - `.github/workflows/docker-image.yml` auto-tags images

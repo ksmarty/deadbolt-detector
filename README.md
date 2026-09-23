@@ -63,7 +63,7 @@ How it publishes
 
 - Full camera JPEG frames are published raw to `{MQTT_TOPIC}/camera` (non-retained).
 - Cropped camera JPEG frames are published raw to `{MQTT_TOPIC}/camera_cropped` (non-retained). The crop region is configured via the WebUI.
-- Availability is published retained to `{MQTT_TOPIC}/availability` (`online` / `offline`). When the camera is unreachable, availability flips to `offline` and both camera topics receive a "Camera Offline" placeholder image. It flips back to `online` when the camera recovers.
+- Availability is published retained to `{MQTT_TOPIC}/availability` (`online` / `offline`). It only flips to `offline` once the camera has been unreachable for `OFFLINE_GRACE_SECONDS` (default 30), so a missed frame or a camera reboot does not flap the entities. When it does go offline, both camera topics receive a "Camera Offline" placeholder image, and availability returns to `online` as soon as a frame arrives again. The device is also marked offline by an MQTT last will if the process dies.
 - Capture button commands are published to `{MQTT_TOPIC}/command/capture_locked` and `{MQTT_TOPIC}/command/capture_unlocked`. The result is published to `{MQTT_TOPIC}/command/result`.
 - Home Assistant discovery messages are published retained under `{MQTT_DISCOVERY_PREFIX}` so HA can auto-create entities.
 
@@ -91,6 +91,7 @@ Below are all environment variables used by the application and their defaults (
 | CLAHE_CLIP_LIMIT | `2.0` | CLAHE local contrast enhancement clip limit (0=off, ~2=moderate, higher=stronger local contrast) |
 | DETECTOR_DEBUG | (not set) | Set to `1` to enable detector debug output |
 | MIN_CONFIDENCE | `0.7` | Minimum confidence [0:1]. Detections below this are mapped to `unknown` |
+| OFFLINE_GRACE_SECONDS | `30` | How long the camera may be unreachable before `{MQTT_TOPIC}/availability` is flipped to `offline`. A shorter outage is ignored entirely |
 
 Everything except the connection settings (`CAMERA_URL`, `MQTT_*`, `CONFIG_DIR`,
 `REFRESH_RATE`) can also be overridden at runtime from the WebUI **Config**
@@ -98,6 +99,20 @@ button. Overrides take effect immediately, are written to
 `$CONFIG_DIR/overrides.json` so they survive a restart, and can be cleared by
 unticking *Override* to fall back to the env var. Env values that are empty or
 unparseable fall back to the documented default instead of crashing.
+
+### Transient outages
+
+The camera is polled every `REFRESH_RATE` seconds. Any single failed fetch used
+to mark the device unavailable immediately, which showed up in Home Assistant as
+a brief blip every few hours (one or two missed polls is about 5-10 seconds).
+Now an outage has to persist for `OFFLINE_GRACE_SECONDS` (default 30) before
+anything is published, so a Wi-Fi hiccup or a camera reboot is invisible. Raise
+it if the camera is flaky, lower it if you want failures reported sooner. Set it
+to `0` for the old behaviour.
+
+If Home Assistant still shows brief unavailability after this, the cause is
+probably not the camera — check whether the log shows `MQTT disconnected`
+around the same time, which means the broker connection dropped instead.
 
 ### Tuning the confidence
 

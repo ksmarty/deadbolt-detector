@@ -43,6 +43,9 @@ TUNABLES = {
     "denoise_strength": ("DENOISE_STRENGTH", int, 0),
     "clahe_clip_limit": ("CLAHE_CLIP_LIMIT", float, 2.0),
     "detector_debug": ("DETECTOR_DEBUG", _to_bool, False),
+    # Not a detection setting: how long the camera may be unreachable before the
+    # MQTT availability topic is flipped to "offline".
+    "offline_grace_seconds": ("OFFLINE_GRACE_SECONDS", int, 30),
 }
 
 
